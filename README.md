@@ -1,7 +1,7 @@
 # ADCommander
-**Written by Dallas Milem**
+**Built by Dallas Milem**
 
-A unified PowerShell toolkit for Active Directory and Entra ID administration. Combines user management, computer search, domain health diagnostics, group management, account actions, and security auditing — all from a single interactive launcher with HTML report export.
+> A unified PowerShell toolkit for Active Directory and Entra ID administration. Combines user management, computer search, domain health diagnostics, group management, account actions, and security auditing — all from a single interactive launcher with HTML report export.
 
 ---
 
