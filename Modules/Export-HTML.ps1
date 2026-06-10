@@ -9,7 +9,7 @@ function Export-HTMLReport {
         [Parameter(Mandatory)]
         [ValidateSet("SearchResult","Comparison","GPOReport","HealthCheck",
                      "StaleAccounts","PasswordExpiry","ComputerSearch",
-                     "GroupInfo","GroupComparison","PrivilegedAccess")]
+                     "GroupInfo","GroupComparison","PrivilegedAccess","RadiusAudit")]
         [string]$ReportType,
 
         [Parameter(Mandatory)]
@@ -97,6 +97,7 @@ function Export-HTMLReport {
         "GroupInfo"       { Build-GroupInfoHTML  -Data $Data }
         "GroupComparison" { Build-GroupCompHTML  -Data $Data }
         "PrivilegedAccess"{ Build-PrivHTML       -Data $Data }
+        "RadiusAudit"     { Build-RadiusHTML     -Data $Data }
     }
 
     ($hdr + $body + $ftr) | Out-File -FilePath $filepath -Encoding UTF8
@@ -289,6 +290,31 @@ function Build-PrivHTML {
             $html += "<tr class='$css'><td>$(HE $m.Name)</td><td>$(HE $m.SAM)</td>" +
                      "<td>$(HE ([string]$m.Enabled))</td><td>$(HE $m.LastLogon)</td>" +
                      "<td>$(HE $m.PwLastSet)</td><td>$flag</td></tr>`n"
+        }
+        $html += "</tbody></table>"
+    }
+    return $html
+}
+
+function Build-RadiusHTML {
+    param([hashtable]$Data)
+    $npsServers = $Data.Findings | Where-Object { $_.NPSInstalled }
+    $unreachable = $Data.Findings | Where-Object { -not $_.Reachable }
+
+    $html = "<h2>RADIUS / NPS Audit</h2>"
+    $html += "<h3>Servers with NPS (RADIUS) Role Installed ($($npsServers.Count))</h3>"
+    $html += "<table><thead><tr><th>Server</th><th>Service Status</th><th>RADIUS Clients</th><th>AD-Integrated</th></tr></thead><tbody>"
+    foreach ($f in $npsServers) {
+        $clients = ($f.RadiusClients | ForEach-Object { "$($_.Name) ($($_.Address))" }) -join ", "
+        $html += "<tr><td>$(HE $f.Server)</td><td>$(HE $f.ServiceStatus)</td><td>$(HE $clients)</td><td>Yes</td></tr>`n"
+    }
+    $html += "</tbody></table>"
+
+    if ($unreachable.Count -gt 0) {
+        $html += "<h3>Unreachable Servers ($($unreachable.Count))</h3>"
+        $html += "<table><thead><tr><th>Server</th><th>Error</th></tr></thead><tbody>"
+        foreach ($f in $unreachable) {
+            $html += "<tr class='warn'><td>$(HE $f.Server)</td><td>$(HE $f.Error)</td></tr>`n"
         }
         $html += "</tbody></table>"
     }

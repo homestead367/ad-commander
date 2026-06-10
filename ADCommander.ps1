@@ -27,6 +27,7 @@ $modulePath = Join-Path $PSScriptRoot "Modules"
 . (Join-Path $modulePath "Get-GroupInfo.ps1")
 . (Join-Path $modulePath "Invoke-AccountActions.ps1")
 . (Join-Path $modulePath "Get-PrivilegedAccess.ps1")
+. (Join-Path $modulePath "Get-RadiusInfo.ps1")
 
 function Show-Banner {
     Clear-Host
@@ -140,6 +141,10 @@ function Show-Menu {
     Write-Host "    [12]  Force Password Reset" -NoNewline
     if (-not $isLocal) { Write-Host "  (Local AD only)" -ForegroundColor DarkGray } else { Write-Host "" }
     Write-Host ""
+    Write-Host "  -- AUTHENTICATION INFRASTRUCTURE --" -ForegroundColor DarkCyan
+    Write-Host "    [15]  RADIUS / NPS Audit" -NoNewline
+    if (-not $isLocal) { Write-Host "  (Local AD only)" -ForegroundColor DarkGray } else { Write-Host "" }
+    Write-Host ""
     Write-Host "  -- SYSTEM --" -ForegroundColor DarkCyan
     Write-Host "    [13]  Change Source"
     Write-Host "    [14]  Exit"
@@ -188,6 +193,7 @@ while ($running) {
         "10" { Invoke-GroupComparison }
         "11" { if (Assert-LocalAD) { Invoke-UnlockAccount } }
         "12" { if (Assert-LocalAD) { Invoke-ForcePasswordReset } }
+        "15" { if (Assert-LocalAD) { Invoke-RadiusAudit } }
         "13" {
             Show-Banner
             Install-ADCommanderRequirements
@@ -204,6 +210,6 @@ while ($running) {
             Write-Host "`n  Goodbye.`n" -ForegroundColor Cyan
             $running = $false
         }
-        default { Write-Host "  [ERROR] Invalid option. Enter 1-14." -ForegroundColor Red }
+        default { Write-Host "  [ERROR] Invalid option. Enter 1-15." -ForegroundColor Red }
     }
 }
