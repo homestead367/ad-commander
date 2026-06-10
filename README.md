@@ -21,6 +21,7 @@
 | 10 | Compare Two Groups | ✓ | ✓ |
 | 11 | Unlock Account | ✓ | |
 | 12 | Force Password Reset | ✓ | |
+| 15 | RADIUS / NPS Audit | ✓ | |
 
 ---
 
@@ -69,7 +70,8 @@ ADCommander/
 │   ├── Search-Computer.ps1          # Computer search + BitLocker
 │   ├── Get-GroupInfo.ps1            # Group search and comparison
 │   ├── Invoke-AccountActions.ps1    # Unlock accounts, force PW reset
-│   └── Get-PrivilegedAccess.ps1     # Privileged group audit
+│   ├── Get-PrivilegedAccess.ps1     # Privileged group audit
+│   └── Get-RadiusInfo.ps1           # RADIUS/NPS role + client audit
 └── Reports/                         # HTML reports saved here (auto-created)
 ```
 
@@ -118,6 +120,7 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 - **BitLocker key retrieval** requires the `BitLocker` module and the recovery key stored in AD. You will be prompted before the key is displayed.
 - **AD Health Check** requires RSAT tools and falls back gracefully when individual tools (e.g. `dcdiag`, `repadmin`) are unavailable.
 - This tool performs **read-only** operations except for Unlock Account and Force Password Reset, both of which require explicit confirmation.
+- **RADIUS / NPS Audit** queries servers via WinRM (`Invoke-Command`) and requires WinRM connectivity/permissions to the target servers.
 
 ---
 
@@ -126,3 +129,4 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 | Version | Date | Notes |
 |---|---|---|
 | 1.0 | 2026-06-09 | Initial release — combines ADInsight + AD-Health-Checker + 6 new admin features |
+| 1.1 | 2026-06-10 | Added RADIUS / NPS Audit (option 15) |
