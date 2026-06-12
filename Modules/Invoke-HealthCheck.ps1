@@ -57,6 +57,117 @@ function Invoke-ADHealthCheck {
         $path = Export-HTMLReport -Data $exportData -ReportType "HealthCheck" -Username $domain -Source "LocalAD"
         Write-Host "[OK] Report saved: $path" -ForegroundColor Green
     }
+
+    Write-Host ""
+    $fsmoChoice = Read-Host "Transfer FSMO roles? [Y/N]"
+    if ($fsmoChoice -match "^[Yy]") {
+        Invoke-FSMORoleTransfer
+    }
+}
+
+function Invoke-FSMORoleTransfer {
+    Write-Host ""
+    Write-Host ("=" * 70) -ForegroundColor DarkCyan
+    Write-Host "  FSMO ROLE TRANSFER" -ForegroundColor White
+    Write-Host ("=" * 70) -ForegroundColor DarkCyan
+    Write-Host ""
+
+    try {
+        $dom = Get-ADDomain -ErrorAction Stop
+        $for = Get-ADForest -ErrorAction Stop
+    } catch {
+        Write-Host "  [ERROR] Could not query current FSMO role holders: $_" -ForegroundColor Red
+        return
+    }
+
+    $roles = @(
+        @{ Num = 1; Name = "PDC Emulator";          Role = "PDCEmulator";          Holder = $dom.PDCEmulator },
+        @{ Num = 2; Name = "RID Master";            Role = "RIDMaster";            Holder = $dom.RIDMaster },
+        @{ Num = 3; Name = "Infrastructure Master"; Role = "InfrastructureMaster"; Holder = $dom.InfrastructureMaster },
+        @{ Num = 4; Name = "Schema Master";         Role = "SchemaMaster";         Holder = $for.SchemaMaster },
+        @{ Num = 5; Name = "Domain Naming Master";  Role = "DomainNamingMaster";   Holder = $for.DomainNamingMaster }
+    )
+
+    Write-Host "  Current FSMO Role Holders:" -ForegroundColor White
+    foreach ($r in $roles) {
+        Write-Host ("    [{0}]  {1,-22} {2}" -f $r.Num, $r.Name, $r.Holder)
+    }
+    Write-Host ""
+
+    $selection = Read-Host "  Enter role number(s) to transfer (comma-separated, or 'all')"
+    if ([string]::IsNullOrWhiteSpace($selection)) {
+        Write-Host "  [INFO] No roles selected. Cancelled." -ForegroundColor Yellow
+        return
+    }
+
+    if ($selection.Trim() -eq "all") {
+        $selected = $roles
+    } else {
+        $nums = $selection -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ }
+        $selected = $roles | Where-Object { $nums -contains $_.Num }
+    }
+
+    if (-not $selected -or $selected.Count -eq 0) {
+        Write-Host "  [ERROR] No valid roles selected." -ForegroundColor Red
+        return
+    }
+
+    Write-Host ""
+    Write-Host "  Selected roles:" -ForegroundColor White
+    $selected | ForEach-Object { Write-Host "    - $($_.Name) (currently: $($_.Holder))" }
+    Write-Host ""
+
+    $target = Read-Host "  Enter the target domain controller (FQDN or hostname)"
+    if ([string]::IsNullOrWhiteSpace($target)) {
+        Write-Host "  [INFO] No target specified. Cancelled." -ForegroundColor Yellow
+        return
+    }
+
+    try {
+        Get-ADDomainController -Identity $target -ErrorAction Stop | Out-Null
+    } catch {
+        Write-Host "  [ERROR] '$target' is not a reachable domain controller: $_" -ForegroundColor Red
+        return
+    }
+
+    Write-Host ""
+    Write-Host "  ------------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "  About to transfer the following roles to: " -NoNewline
+    Write-Host $target -ForegroundColor Yellow
+    $selected | ForEach-Object { Write-Host "    - $($_.Name)" }
+    Write-Host "  ------------------------------------------------------------------" -ForegroundColor DarkGray
+    $confirm = Read-Host "  Confirm FSMO role transfer? Type 'YES' to proceed"
+    if ($confirm -ne "YES") {
+        Write-Host "  [INFO] Transfer cancelled." -ForegroundColor Yellow
+        return
+    }
+
+    try {
+        Move-ADDirectoryServerOperationMasterRole -Identity $target -OperationMasterRole ($selected | ForEach-Object { $_.Role }) -ErrorAction Stop
+        Write-Host ""
+        Write-Host "  [OK] FSMO role transfer completed successfully." -ForegroundColor Green
+    } catch {
+        Write-Host ""
+        Write-Host "  [ERROR] FSMO role transfer failed: $_" -ForegroundColor Red
+        Write-Host "  [INFO] If the current role holder is offline/unreachable, a seizure" -ForegroundColor Yellow
+        Write-Host "         (-Force) may be required. Seizure is destructive and should" -ForegroundColor Yellow
+        Write-Host "         only be performed when the original role holder will never" -ForegroundColor Yellow
+        Write-Host "         return online." -ForegroundColor Yellow
+
+        $seize = Read-Host "  Attempt to SEIZE these roles instead? Type 'SEIZE' to proceed"
+        if ($seize -eq "SEIZE") {
+            try {
+                Move-ADDirectoryServerOperationMasterRole -Identity $target -OperationMasterRole ($selected | ForEach-Object { $_.Role }) -Force -ErrorAction Stop
+                Write-Host ""
+                Write-Host "  [OK] FSMO role seizure completed." -ForegroundColor Green
+            } catch {
+                Write-Host ""
+                Write-Host "  [ERROR] FSMO role seizure failed: $_" -ForegroundColor Red
+            }
+        } else {
+            Write-Host "  [INFO] Seizure cancelled." -ForegroundColor Yellow
+        }
+    }
 }
 
 function Get-DCDiagResults {
