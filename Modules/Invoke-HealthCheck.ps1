@@ -21,11 +21,11 @@ function Invoke-ADHealthCheck {
         @{ Name = "DC Diagnostics";        Fn = { Get-DCDiagResults } },
         @{ Name = "AD Replication";        Fn = { Get-ReplicationResults } },
         @{ Name = "DFSR / Sysvol";         Fn = { Get-DFSRResults } },
-        @{ Name = "DNS & Network";         Fn = { Get-DNSResults -Domain $domain } },
-        @{ Name = "FSMO Roles & Time";     Fn = { Get-FSMOResults } },
+        @{ Name = "DNS and Network";         Fn = { Get-DNSResults -Domain $domain } },
+        @{ Name = "FSMO Roles and Time";     Fn = { Get-FSMOResults } },
         @{ Name = "Group Policy Health";   Fn = { Get-GPHealthResults } },
         @{ Name = "Privileged Groups";     Fn = { Get-PrivGroupResults } },
-        @{ Name = "Forest & Domain Info";  Fn = { Get-ForestInfoResults } }
+        @{ Name = "Forest and Domain Info";  Fn = { Get-ForestInfoResults } }
     )
 
     foreach ($check in $checks) {
@@ -126,7 +126,7 @@ function Get-DNSResults {
         $ipcfg = & ipconfig /all 2>&1 | Out-String
         $output += "--- ipconfig /all ---`n$ipcfg`n"
     } catch { $output = "DNS check failed: $_"; $status = "Warning" }
-    return [PSCustomObject]@{ Category = "DNS & Network"; Status = $status; Output = $output }
+    return [PSCustomObject]@{ Category = "DNS and Network"; Status = $status; Output = $output }
 }
 
 function Get-FSMOResults {
@@ -152,7 +152,7 @@ function Get-FSMOResults {
         $output += "`n--- w32tm /query /status ---`n$time`n"
         if ($time -match "error|not running") { $status = if ($status -ne "Fail") { "Warning" } else { "Fail" } }
     } catch { $output = "FSMO check failed: $_"; $status = "Warning" }
-    return [PSCustomObject]@{ Category = "FSMO Roles & Time"; Status = $status; Output = $output }
+    return [PSCustomObject]@{ Category = "FSMO Roles and Time"; Status = $status; Output = $output }
 }
 
 function Get-GPHealthResults {
@@ -213,5 +213,5 @@ function Get-ForestInfoResults {
         $output += "Sites:              $($for.Sites -join ', ')`n"
         $output += "Domains in Forest:  $($for.Domains -join ', ')`n"
     } catch { $output = "Forest info failed: $_"; $status = "Warning" }
-    return [PSCustomObject]@{ Category = "Forest & Domain Info"; Status = $status; Output = $output }
+    return [PSCustomObject]@{ Category = "Forest and Domain Info"; Status = $status; Output = $output }
 }
