@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    ADCommander — Unified Active Directory & Entra ID Administration Toolkit
+    ADCommander  -  Unified Active Directory & Entra ID Administration Toolkit
 .DESCRIPTION
     All-in-one AD admin tool: user search, computer search, group management,
     domain health checks, GPO reporting, stale accounts, password expiry,
@@ -158,7 +158,7 @@ function Assert-LocalAD {
     return $true
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# -- Main ----------------------------------------------------------------------
 Show-Banner
 Install-ADCommanderRequirements
 

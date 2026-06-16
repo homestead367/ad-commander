@@ -8,7 +8,7 @@ function Install-ADCommanderRequirements {
 
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]"Administrator")
 
-    # ── ActiveDirectory (RSAT) ────────────────────────────────────────────────
+    # -- ActiveDirectory (RSAT) ------------------------------------------------
     if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
         Write-Host "  [MISSING] ActiveDirectory module (RSAT)" -ForegroundColor Yellow
         Write-Host "  Required for: all Local AD features" -ForegroundColor Gray
@@ -31,7 +31,7 @@ function Install-ADCommanderRequirements {
         Write-Host "  [OK] ActiveDirectory module" -ForegroundColor Green
     }
 
-    # ── GroupPolicy (RSAT) ────────────────────────────────────────────────────
+    # -- GroupPolicy (RSAT) ----------------------------------------------------
     if (-not (Get-Module -ListAvailable -Name GroupPolicy)) {
         Write-Host "  [MISSING] GroupPolicy module (RSAT)" -ForegroundColor Yellow
         Write-Host "  Required for: GPO reports, AD Health Check" -ForegroundColor Gray
@@ -54,7 +54,7 @@ function Install-ADCommanderRequirements {
         Write-Host "  [OK] GroupPolicy module" -ForegroundColor Green
     }
 
-    # ── Microsoft.Graph ───────────────────────────────────────────────────────
+    # -- Microsoft.Graph -------------------------------------------------------
     if (-not (Get-Module -ListAvailable -Name Microsoft.Graph.Authentication)) {
         Write-Host "  [MISSING] Microsoft.Graph module" -ForegroundColor Yellow
         Write-Host "  Required for: Entra ID features" -ForegroundColor Gray
@@ -73,12 +73,12 @@ function Install-ADCommanderRequirements {
         Write-Host "  [OK] Microsoft.Graph module" -ForegroundColor Green
     }
 
-    # ── BitLocker (built-in, non-fatal) ───────────────────────────────────────
+    # -- BitLocker (built-in, non-fatal) ---------------------------------------
     try {
         Import-Module BitLocker -ErrorAction Stop
         Write-Host "  [OK] BitLocker module" -ForegroundColor Green
     } catch {
-        Write-Host "  [INFO] BitLocker module unavailable — BitLocker key retrieval disabled." -ForegroundColor DarkYellow
+        Write-Host "  [INFO] BitLocker module unavailable  -  BitLocker key retrieval disabled." -ForegroundColor DarkYellow
     }
 
     Write-Host ""

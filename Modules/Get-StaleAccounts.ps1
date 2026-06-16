@@ -8,7 +8,7 @@ function Invoke-StaleAccountReport {
 
     Write-Host "`nQuerying stale accounts (threshold: $days days)..." -ForegroundColor Cyan
 
-    # ── Inactive users ────────────────────────────────────────────────────────
+    # -- Inactive users --------------------------------------------------------
     $inactiveUsers = @()
     try {
         $users = Get-ADUser -Filter { Enabled -eq $true -and LastLogonDate -lt $cutoff } `
@@ -25,7 +25,7 @@ function Invoke-StaleAccountReport {
         } | Sort-Object LastLogon
     } catch { Write-Host "[WARN] Could not query inactive users: $_" -ForegroundColor Yellow }
 
-    # ── Inactive computers ────────────────────────────────────────────────────
+    # -- Inactive computers ----------------------------------------------------
     $inactiveComputers = @()
     try {
         $computers = Get-ADComputer -Filter { Enabled -eq $true -and LastLogonDate -lt $cutoff } `
@@ -42,7 +42,7 @@ function Invoke-StaleAccountReport {
         } | Sort-Object LastLogon
     } catch { Write-Host "[WARN] Could not query inactive computers: $_" -ForegroundColor Yellow }
 
-    # ── Disabled accounts with group memberships ──────────────────────────────
+    # -- Disabled accounts with group memberships ------------------------------
     $disabledWithGroups = @()
     try {
         $disabled = Get-ADUser -Filter { Enabled -eq $false } `
@@ -81,7 +81,7 @@ function Show-StaleTable {
     $line = "=" * 70
     Write-Host ""
     Write-Host $line -ForegroundColor DarkCyan
-    Write-Host " STALE ACCOUNT REPORT — Threshold: $Days days" -ForegroundColor White
+    Write-Host " STALE ACCOUNT REPORT  -  Threshold: $Days days" -ForegroundColor White
     Write-Host $line -ForegroundColor DarkCyan
 
     Write-Host "`n  INACTIVE USERS ($($InactiveUsers.Count))" -ForegroundColor Yellow

@@ -78,7 +78,7 @@ function Show-PasswordTable {
     $line = "=" * 70
     Write-Host ""
     Write-Host $line -ForegroundColor DarkCyan
-    Write-Host " PASSWORD EXPIRY DASHBOARD — Next $Days days" -ForegroundColor White
+    Write-Host " PASSWORD EXPIRY DASHBOARD  -  Next $Days days" -ForegroundColor White
     Write-Host $line -ForegroundColor DarkCyan
 
     Write-Host "`n  EXPIRING SOON ($($ExpiringSoon.Count))" -ForegroundColor Yellow
