@@ -12,8 +12,13 @@
     Author:  Dallas Milem
 #>
 
-# Load all modules at script scope so their functions are immediately available
+# Unblock all module files so Windows doesn't prompt per-file when the script
+# is run after being extracted from a downloaded ZIP archive
 $modulePath = Join-Path $PSScriptRoot "Modules"
+Get-ChildItem -Path $modulePath -Filter "*.ps1" | Unblock-File -ErrorAction SilentlyContinue
+Unblock-File -LiteralPath $PSCommandPath -ErrorAction SilentlyContinue
+
+# Load all modules at script scope so their functions are immediately available
 . (Join-Path $modulePath "Install-Requirements.ps1")
 . (Join-Path $modulePath "Connect-Source.ps1")
 . (Join-Path $modulePath "Export-HTML.ps1")
