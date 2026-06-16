@@ -12,21 +12,22 @@
     Author:  Dallas Milem
 #>
 
-# Core modules needed at startup and shared by everything else
+# Load all modules at script scope so their functions are immediately available
 $modulePath = Join-Path $PSScriptRoot "Modules"
 . (Join-Path $modulePath "Install-Requirements.ps1")
 . (Join-Path $modulePath "Connect-Source.ps1")
 . (Join-Path $modulePath "Export-HTML.ps1")
-
-# Feature modules are dot-sourced on demand the first time they're used
-$script:LoadedModules = @{}
-function Import-ADCommanderModule {
-    param([Parameter(Mandatory)][string]$Name)
-    if (-not $script:LoadedModules.ContainsKey($Name)) {
-        . (Join-Path $modulePath "$Name.ps1")
-        $script:LoadedModules[$Name] = $true
-    }
-}
+. (Join-Path $modulePath "Search-User.ps1")
+. (Join-Path $modulePath "Compare-Users.ps1")
+. (Join-Path $modulePath "Get-UserGPO.ps1")
+. (Join-Path $modulePath "Search-Computer.ps1")
+. (Join-Path $modulePath "Invoke-HealthCheck.ps1")
+. (Join-Path $modulePath "Get-StaleAccounts.ps1")
+. (Join-Path $modulePath "Get-PasswordExpiry.ps1")
+. (Join-Path $modulePath "Get-PrivilegedAccess.ps1")
+. (Join-Path $modulePath "Get-GroupInfo.ps1")
+. (Join-Path $modulePath "Invoke-AccountActions.ps1")
+. (Join-Path $modulePath "Get-RadiusInfo.ps1")
 
 function Show-Banner {
     Clear-Host
@@ -180,19 +181,19 @@ while ($running) {
     $choice = Read-Host "  Select option"
 
     switch ($choice.Trim()) {
-        "1"  { Import-ADCommanderModule "Search-User";          Invoke-UserSearch }
-        "2"  { Import-ADCommanderModule "Compare-Users";        Invoke-UserComparison }
-        "3"  { if (Assert-LocalAD) { Import-ADCommanderModule "Get-UserGPO";          Invoke-UserGPOReport } }
-        "4"  { if (Assert-LocalAD) { Import-ADCommanderModule "Search-Computer";      Invoke-ComputerSearch } }
-        "5"  { if (Assert-LocalAD) { Import-ADCommanderModule "Invoke-HealthCheck";   Invoke-ADHealthCheck } }
-        "6"  { if (Assert-LocalAD) { Import-ADCommanderModule "Get-StaleAccounts";    Invoke-StaleAccountReport } }
-        "7"  { if (Assert-LocalAD) { Import-ADCommanderModule "Get-PasswordExpiry";   Invoke-PasswordExpiryReport } }
-        "8"  { if (Assert-LocalAD) { Import-ADCommanderModule "Get-PrivilegedAccess"; Invoke-PrivilegedAccessAudit } }
-        "9"  { Import-ADCommanderModule "Get-GroupInfo";        Invoke-GroupSearch }
-        "10" { Import-ADCommanderModule "Get-GroupInfo";        Invoke-GroupComparison }
-        "11" { if (Assert-LocalAD) { Import-ADCommanderModule "Invoke-AccountActions"; Invoke-UnlockAccount } }
-        "12" { if (Assert-LocalAD) { Import-ADCommanderModule "Invoke-AccountActions"; Invoke-ForcePasswordReset } }
-        "15" { if (Assert-LocalAD) { Import-ADCommanderModule "Get-RadiusInfo";       Invoke-RadiusAudit } }
+        "1"  { Invoke-UserSearch }
+        "2"  { Invoke-UserComparison }
+        "3"  { if (Assert-LocalAD) { Invoke-UserGPOReport } }
+        "4"  { if (Assert-LocalAD) { Invoke-ComputerSearch } }
+        "5"  { if (Assert-LocalAD) { Invoke-ADHealthCheck } }
+        "6"  { if (Assert-LocalAD) { Invoke-StaleAccountReport } }
+        "7"  { if (Assert-LocalAD) { Invoke-PasswordExpiryReport } }
+        "8"  { if (Assert-LocalAD) { Invoke-PrivilegedAccessAudit } }
+        "9"  { Invoke-GroupSearch }
+        "10" { Invoke-GroupComparison }
+        "11" { if (Assert-LocalAD) { Invoke-UnlockAccount } }
+        "12" { if (Assert-LocalAD) { Invoke-ForcePasswordReset } }
+        "15" { if (Assert-LocalAD) { Invoke-RadiusAudit } }
         "13" {
             Show-Banner
             Install-ADCommanderRequirements
