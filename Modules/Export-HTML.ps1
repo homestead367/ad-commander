@@ -108,7 +108,7 @@ function Export-HTMLReport {
 
 function script:HE([string]$s) {
     if ([string]::IsNullOrEmpty($s)) { return "<em>N/A</em>" }
-    return [System.Web.HttpUtility]::HtmlEncode($s)
+    return $s.Replace('&','&amp;').Replace('<','&lt;').Replace('>','&gt;').Replace('"','&quot;').Replace("'",'&#39;')
 }
 
 function Build-SearchHTML {
