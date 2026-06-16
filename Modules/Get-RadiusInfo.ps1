@@ -65,7 +65,17 @@ function Invoke-RadiusAudit {
     }
 
     $findings = @()
+    $skipped  = 0
     foreach ($target in $targets) {
+        # Skip servers that don't resolve in DNS — avoids flooding output with
+        # WinRM "name cannot be resolved" errors for stale or offline AD records
+        try {
+            [System.Net.Dns]::GetHostAddresses($target) | Out-Null
+        } catch {
+            $skipped++
+            continue
+        }
+
         try {
             $r = Invoke-Command -ComputerName $target -ScriptBlock $scriptBlock -ErrorAction Stop
             $findings += [PSCustomObject]@{
@@ -86,6 +96,9 @@ function Invoke-RadiusAudit {
                 Error         = $_.Exception.Message
             }
         }
+    }
+    if ($skipped -gt 0) {
+        Write-Host "  [INFO] Skipped $skipped server(s) with no DNS record (stale or offline AD entries)." -ForegroundColor DarkGray
     }
 
     Show-RadiusTable -Findings $findings
