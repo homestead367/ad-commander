@@ -191,8 +191,9 @@ function Get-ReplicationResults {
     try {
         $summary = & repadmin /replsummary 2>&1 | Out-String
         $output += "--- repadmin /replsummary ---`n$summary`n"
-        if ($summary -match "error|fail|\*FAIL") { $status = "Fail" }
-        elseif ($summary -match "warning|warn" -and $status -ne "Fail") { $status = "Warning" }
+        # Match a non-zero fail count (e.g. "5 /  10") or a *-prefixed failing DC entry
+        if ($summary -match '(?m)^\s+\*\s+\S' -or $summary -match '\*FAIL' -or $summary -match '(?m)^\s+[1-9]\d*\s+/') { $status = "Fail" }
+        elseif ($summary -match "(?i)warning") { $status = "Warning" }
 
         $queue = & repadmin /queue 2>&1 | Out-String
         $output += "--- repadmin /queue ---`n$queue`n"
