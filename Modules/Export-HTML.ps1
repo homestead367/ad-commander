@@ -155,9 +155,9 @@ function Build-GPOHTML {
 
 function Build-HealthHTML {
     param([hashtable]$Data)
-    $pass = ($Data.Results | Where-Object { $_.Status -eq "Pass" }).Count
-    $warn = ($Data.Results | Where-Object { $_.Status -eq "Warning" }).Count
-    $fail = ($Data.Results | Where-Object { $_.Status -eq "Fail" }).Count
+    $pass = @($Data.Results | Where-Object { $_.Status -eq "Pass" }).Count
+    $warn = @($Data.Results | Where-Object { $_.Status -eq "Warning" }).Count
+    $fail = @($Data.Results | Where-Object { $_.Status -eq "Fail" }).Count
     $summary = "<div class='summary-bar'>" +
                "<div class='summary-card'><div class='num ok-num'>$pass</div><div class='lbl'>Pass</div></div>" +
                "<div class='summary-card'><div class='num warn-num'>$warn</div><div class='lbl'>Warning</div></div>" +

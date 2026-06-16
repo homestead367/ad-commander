@@ -41,9 +41,9 @@ function Invoke-ADHealthCheck {
         }
     }
 
-    $pass = ($results | Where-Object { $_.Status -eq "Pass" }).Count
-    $warn = ($results | Where-Object { $_.Status -eq "Warning" }).Count
-    $fail = ($results | Where-Object { $_.Status -eq "Fail" }).Count
+    $pass = @($results | Where-Object { $_.Status -eq "Pass" }).Count
+    $warn = @($results | Where-Object { $_.Status -eq "Warning" }).Count
+    $fail = @($results | Where-Object { $_.Status -eq "Fail" }).Count
 
     Write-Host ""
     Write-Host ("=" * 70) -ForegroundColor DarkCyan
