@@ -101,7 +101,10 @@ function Get-GPResultFallback {
         foreach ($line in $output) {
             if ($line -match "Applied Group Policy Objects")         { $inApplied = $true;  $inDenied = $false; continue }
             if ($line -match "The following GPOs were not applied")  { $inDenied  = $true;  $inApplied = $false; continue }
-            if ($line -match "^(COMPUTER SETTINGS|USER SETTINGS|Resultant Set)") { $inApplied = $false; $inDenied = $false }
+            # Exit sections when a new top-level header begins
+            if ($line -match "^(COMPUTER SETTINGS|USER SETTINGS|Resultant Set|The (user|computer) is a part of)") {
+                $inApplied = $false; $inDenied = $false
+            }
             if ($line -match "^\s*$") { continue }
 
             if ($inApplied -and $line -match "^\s+(.+)$") {
@@ -111,10 +114,21 @@ function Get-GPResultFallback {
                 }
             }
 
-            if ($inDenied -and $line -match "^\s+(.+)$") {
-                $name = $Matches[1].Trim()
-                if ($name -ne "" -and $name -notmatch "^-+$") {
-                    $denied += [PSCustomObject]@{ Name = $name; Scope = "User"; Reason = "Filtered" }
+            if ($inDenied) {
+                # "Filtering:  Denied (Security)" lines are sub-attributes — extract the
+                # reason and attach it to the last captured GPO; don't add a new entry
+                if ($line -match "^\s+Filtering:\s+(.+)$") {
+                    if ($denied.Count -gt 0) { $denied[-1].Reason = $Matches[1].Trim() }
+                    continue
+                }
+                # "WMI Filter:" lines are also sub-attributes
+                if ($line -match "^\s+WMI Filter:") { continue }
+
+                if ($line -match "^\s+(.+)$") {
+                    $name = $Matches[1].Trim()
+                    if ($name -ne "" -and $name -notmatch "^-+$") {
+                        $denied += [PSCustomObject]@{ Name = $name; Scope = "User"; Reason = "Filtered" }
+                    }
                 }
             }
         }
