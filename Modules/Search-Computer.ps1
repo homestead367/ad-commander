@@ -26,7 +26,7 @@ function Invoke-ComputerSearch {
             Write-Host "`n  Multiple matches found:" -ForegroundColor Yellow
             $i = 1
             foreach ($c in $computers) {
-                Write-Host ("  [{0}] {1} — {2}" -f $i, $c.Name, $c.OperatingSystem)
+                Write-Host ("  [{0}] {1}  -  {2}" -f $i, $c.Name, $c.OperatingSystem)
                 $i++
             }
             $sel = Read-Host "`n  Select number"
@@ -62,7 +62,7 @@ function Invoke-ComputerSearch {
             if ($showKey -match "^[Yy]") {
                 $data["BitLocker Key"] = $bitlockerKey
             } else {
-                $data["BitLocker Key"] = "[Key retrieved — display declined]"
+                $data["BitLocker Key"] = "[Key retrieved  -  display declined]"
             }
         }
 

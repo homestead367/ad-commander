@@ -139,7 +139,7 @@ function Show-GPOTable {
 
     Write-Host ""
     Write-Host $line -ForegroundColor DarkCyan
-    Write-Host " GPO RESULTANT SET — $($Data.Username.ToUpper())  [via $($Data.Source)]" -ForegroundColor White
+    Write-Host " GPO RESULTANT SET  -  $($Data.Username.ToUpper())  [via $($Data.Source)]" -ForegroundColor White
     Write-Host $line -ForegroundColor DarkCyan
 
     if ($Data.LoopbackMode -and $Data.LoopbackMode -ne "None") {

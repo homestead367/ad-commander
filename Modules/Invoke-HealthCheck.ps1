@@ -12,7 +12,7 @@ function Invoke-ADHealthCheck {
 
     Write-Host ""
     Write-Host ("=" * 70) -ForegroundColor DarkCyan
-    Write-Host "  AD HEALTH CHECK — $($domain.ToUpper())" -ForegroundColor White
+    Write-Host "  AD HEALTH CHECK  -  $($domain.ToUpper())" -ForegroundColor White
     Write-Host ("=" * 70) -ForegroundColor DarkCyan
     Write-Host ""
 

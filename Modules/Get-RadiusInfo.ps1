@@ -111,7 +111,7 @@ function Show-RadiusTable {
     Write-Host "`n  SERVERS WITH NPS (RADIUS) ROLE INSTALLED ($($npsServers.Count))" -ForegroundColor Yellow
     Write-Host ("-" * 70) -ForegroundColor DarkGray
     if ($npsServers.Count -eq 0) {
-        Write-Host "  (none found — no RADIUS/NPS servers detected)" -ForegroundColor Gray
+        Write-Host "  (none found - no RADIUS/NPS servers detected)" -ForegroundColor Gray
     } else {
         foreach ($f in $npsServers) {
             Write-Host ("  {0,-30} Service: {1,-10} RADIUS Clients: {2}" -f $f.Server, $f.ServiceStatus, $f.RadiusClients.Count) -ForegroundColor Green

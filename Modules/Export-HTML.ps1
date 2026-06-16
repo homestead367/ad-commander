@@ -78,13 +78,13 @@ function Export-HTMLReport {
 "@
 
     $hdr = "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>" +
-           "<title>ADCommander — $ReportType</title>$css</head><body>" +
+           "<title>ADCommander  -  $ReportType</title>$css</head><body>" +
            "<header><h1>ADCommander</h1><p>Written by Dallas Milem &nbsp;|&nbsp; " +
            "Report: $ReportType &nbsp;|&nbsp; $Username &nbsp;|&nbsp; Source: $Source</p></header>" +
            "<div class='container'>"
 
     $ftr = "</div><footer>Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') &nbsp;|&nbsp; " +
-           "Source: $Source &nbsp;|&nbsp; ADCommander v1.0 — Written by Dallas Milem</footer></body></html>"
+           "Source: $Source &nbsp;|&nbsp; ADCommander v1.0  -  Written by Dallas Milem</footer></body></html>"
 
     $body = switch ($ReportType) {
         "SearchResult"    { Build-SearchHTML    -Data $Data }
@@ -104,7 +104,7 @@ function Export-HTMLReport {
     return $filepath
 }
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 function script:HE([string]$s) {
     if ([string]::IsNullOrEmpty($s)) { return "<em>N/A</em>" }
@@ -143,12 +143,12 @@ function Build-GPOHTML {
                     "<td><span class='badge badge-applied'>Applied</span></td></tr>`n"
     }
     foreach ($g in $Data.DeniedGPOs) {
-        $denied += "<tr><td>—</td><td>$(HE $g.Name)</td><td>$($g.Scope)</td>" +
+        $denied += "<tr><td> - </td><td>$(HE $g.Name)</td><td>$($g.Scope)</td>" +
                    "<td><span class='badge badge-denied'>$(HE $g.Reason)</span></td></tr>`n"
     }
     $loop = if ($Data.LoopbackMode -and $Data.LoopbackMode -ne "None") {
         "<p><strong>Loopback Mode:</strong> $($Data.LoopbackMode)</p>" } else { "" }
-    return "<h2>GPO Resultant Set — $(HE $Data.Username)</h2>$loop" +
+    return "<h2>GPO Resultant Set  -  $(HE $Data.Username)</h2>$loop" +
            "<table><thead><tr><th>#</th><th>Policy Name</th><th>Scope</th><th>Status</th></tr></thead>" +
            "<tbody>$applied$denied</tbody></table>"
 }
@@ -170,12 +170,12 @@ function Build-HealthHTML {
         $sections += "<details><summary><span class='badge $badgeClass'>$($r.Status)</span> &nbsp; $(HE $r.Category)</summary>" +
                      "<div class='detail-body'>$out</div></details>`n"
     }
-    return "<h2>AD Health Check — $(HE $Data.Domain)</h2>$summary$sections"
+    return "<h2>AD Health Check  -  $(HE $Data.Domain)</h2>$summary$sections"
 }
 
 function Build-StaleHTML {
     param([hashtable]$Data)
-    $html = "<h2>Stale Account Report — Threshold: $($Data.ThresholdDays) days</h2>"
+    $html = "<h2>Stale Account Report  -  Threshold: $($Data.ThresholdDays) days</h2>"
 
     $html += "<h3>Inactive Users ($($Data.InactiveUsers.Count))</h3>"
     $html += "<table><thead><tr><th>Name</th><th>SAM</th><th>Last Logon</th><th>OU</th></tr></thead><tbody>"
@@ -202,7 +202,7 @@ function Build-StaleHTML {
 
 function Build-PasswordHTML {
     param([hashtable]$Data)
-    $html = "<h2>Password Expiry Dashboard — Next $($Data.LookAheadDays) Days</h2>"
+    $html = "<h2>Password Expiry Dashboard  -  Next $($Data.LookAheadDays) Days</h2>"
 
     $html += "<h3>Expiring Soon ($($Data.ExpiringSoon.Count))</h3>"
     $html += "<table><thead><tr><th>Name</th><th>SAM</th><th>Expires</th><th>Days Left</th></tr></thead><tbody>"
