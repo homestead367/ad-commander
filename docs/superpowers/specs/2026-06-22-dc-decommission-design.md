@@ -10,18 +10,24 @@ destructive action either way.
 
 ## New module: `Modules/Invoke-DCDecommission.ps1`
 
-### Menu entries (new `-- DC DECOMMISSIONING --` section, Local AD only)
+### Menu entry (new `-- DC DECOMMISSIONING --` section, Local AD only)
+
+A single top-level menu item, **Decommission Wizard** — `Invoke-DCDecommissionWizard`.
+Selecting it opens an internal sub-menu (not separate top-level numbered menu
+items) listing:
 
 1. **DHCP Cleanup** — `Invoke-DCDhcpCleanup`
 2. **DNS Cleanup** — `Invoke-DCDnsCleanup`
 3. **Demote Domain Controller** — `Invoke-DCDemote`
 4. **AD Metadata Cleanup** — `Invoke-DCMetadataCleanup`
 5. **Verify Decommission** — `Invoke-DCDecommissionVerify`
-6. **Run Full Decommission Wizard** — `Invoke-DCDecommissionWizard`
+6. **Full Decommission** — runs steps 1-5 in order
 
-Each of 1-5 is independently runnable from the menu. The Wizard (6) runs them in
-this exact order, prompting Y/N before each step, and **stops immediately on the
-first failure**, reporting which steps completed and which didn't.
+Sub-menu options 1-5 are independently runnable ("one by one"). Option 6, **Full
+Decommission**, runs them in this exact order, prompting Y/N before each step,
+and **stops immediately on the first failure**, reporting which steps completed
+and which didn't. The sub-menu loop returns to itself after each step so the
+operator can run another step or exit back to the main menu.
 
 ### Shared pre-flight check (`Test-DCDecommissionReadiness`, internal helper)
 
@@ -133,13 +139,19 @@ aborts with the reasons printed if true.
 5. Print a clean PASS/FAIL summary per check.
 6. Offer HTML export.
 
-### Wizard (`Invoke-DCDecommissionWizard`)
+### Decommission Wizard (`Invoke-DCDecommissionWizard`, top-level menu entry)
+
+Entry point for the whole feature. Shows the internal sub-menu (steps 1-5 plus
+**Full Decommission**) and loops until the operator chooses to exit back to the
+main menu.
+
+**Full Decommission** (sub-menu option 6):
 
 1. Prompt for target DC once.
 2. Run pre-flight check once; abort on block before anything else runs.
 3. Run Steps 1 → 2 → 3 → 4 → 5 in order, passing the already-known target into
    each (steps accept an optional `-TargetDC` parameter so standalone use still
-   prompts interactively, but the Wizard doesn't re-prompt).
+   prompts interactively, but Full Decommission doesn't re-prompt).
 4. Confirm **[Y/N] before each step**, same as standalone use.
 5. On any step failure: stop immediately, print which steps completed
    successfully and which one failed (with its error), and skip remaining
@@ -157,8 +169,10 @@ aborts with the reasons printed if true.
 
 - Dot-source `Get-AccountTroubleshoot.ps1`-style: add
   `. (Join-Path $modulePath "Invoke-DCDecommission.ps1")`.
-- New `-- DC DECOMMISSIONING --` menu section with the 6 entries above, each
-  marked `(Local AD only)` like other Local-AD-only features.
+- New `-- DC DECOMMISSIONING --` menu section with a single entry,
+  **Decommission Wizard**, marked `(Local AD only)` like other Local-AD-only
+  features. The 6 steps live inside `Invoke-DCDecommissionWizard`'s own
+  sub-menu, not as separate top-level numbered menu items.
 - Renumber the full menu gapless, Exit always last, update the `switch` block
   and the `default` error message range.
 
