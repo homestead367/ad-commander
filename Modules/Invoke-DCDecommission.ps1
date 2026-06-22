@@ -399,30 +399,33 @@ function Invoke-DCMetadataCleanup {
 
     try {
         $domain = Get-ADDomain -ErrorAction Stop
-        $ntdsLeftover = Get-ADObject -Filter "ObjectClass -eq 'nTDSDSA'" `
-            -SearchBase "CN=Sites,CN=Configuration,$($domain.DistinguishedName)" -ErrorAction SilentlyContinue |
-            Where-Object { $_.DistinguishedName -like "*$shortName*" }
         $serverLeftover = Get-ADObject -Filter "ObjectClass -eq 'server' -and Name -eq '$shortName'" `
-            -SearchBase "CN=Sites,CN=Configuration,$($domain.DistinguishedName)" -ErrorAction SilentlyContinue
+            -SearchBase "CN=Sites,CN=Configuration,$($domain.DistinguishedName)" -ErrorAction Stop
+        $ntdsLeftover = @()
+        foreach ($srv in @($serverLeftover)) {
+            $ntdsLeftover += Get-ADObject -Filter "ObjectClass -eq 'nTDSDSA'" `
+                -SearchBase $srv.DistinguishedName -SearchScope OneLevel -ErrorAction Stop
+        }
     } catch {
         Write-Host "  [ERROR] Could not query AD metadata: $_" -ForegroundColor Red
         return [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
     }
 
-    $leftovers = @($ntdsLeftover) + @($serverLeftover) | Where-Object { $_ }
+    $leftovers = @($serverLeftover) | Where-Object { $_ }
+    $allLeftoverForDisplay = (@($serverLeftover) + @($ntdsLeftover)) | Where-Object { $_ }
 
-    if (@($leftovers).Count -eq 0) {
+    if (@($allLeftoverForDisplay).Count -eq 0) {
         Write-Host "  [OK] No leftover AD metadata found for '$target' - demotion was clean." -ForegroundColor Green
         return [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Skipped"; Timestamp = $ts; Detail = "No leftover metadata found" }
     }
 
     Write-Host ""
-    Write-Host "  Found $(@($leftovers).Count) leftover AD object(s) for '$target':" -ForegroundColor Yellow
-    $leftovers | ForEach-Object { Write-Host "    - $($_.DistinguishedName)" }
+    Write-Host "  Found $(@($allLeftoverForDisplay).Count) leftover AD object(s) for '$target':" -ForegroundColor Yellow
+    $allLeftoverForDisplay | ForEach-Object { Write-Host "    - $($_.DistinguishedName)" }
     Write-Host ""
     Write-Host "  [WARNING] Removing these objects directly modifies AD outside the normal demotion path." -ForegroundColor Red
-    $confirm = Read-Host "  Type the DC name ('$target') to confirm removal"
-    if ($confirm -ne $target) {
+    $confirm = Read-Host "  Type the DC name ('$shortName') to confirm removal"
+    if ($confirm -ne $shortName) {
         Write-Host "  [CANCELLED] Confirmation did not match. No changes made." -ForegroundColor Gray
         return [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Cancelled"; Timestamp = $ts; Detail = "Confirmation did not match" }
     }
