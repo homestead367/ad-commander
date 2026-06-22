@@ -376,3 +376,75 @@ function Invoke-DCDemote {
 
     return $record
 }
+
+function Invoke-DCMetadataCleanup {
+    param(
+        [string]$TargetDC,
+        [PSCustomObject]$Readiness,
+        [switch]$SkipExport
+    )
+
+    if (-not $Readiness) {
+        $Readiness = Test-DCDecommissionReadiness -TargetDC $TargetDC
+        if (-not $Readiness) { return $null }
+        Show-DCDecommissionReadiness -Readiness $Readiness
+    }
+    # After a successful demotion the target no longer holds FSMO/GC roles, so a
+    # Blocked result here most likely means the DC was never actually demoted.
+    if ($Readiness.Blocked) { return $null }
+
+    $target    = $Readiness.TargetDC
+    $shortName = ($target -split '\.')[0]
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+    try {
+        $domain = Get-ADDomain -ErrorAction Stop
+        $ntdsLeftover = Get-ADObject -Filter "ObjectClass -eq 'nTDSDSA'" `
+            -SearchBase "CN=Sites,CN=Configuration,$($domain.DistinguishedName)" -ErrorAction SilentlyContinue |
+            Where-Object { $_.DistinguishedName -like "*$shortName*" }
+        $serverLeftover = Get-ADObject -Filter "ObjectClass -eq 'server' -and Name -eq '$shortName'" `
+            -SearchBase "CN=Sites,CN=Configuration,$($domain.DistinguishedName)" -ErrorAction SilentlyContinue
+    } catch {
+        Write-Host "  [ERROR] Could not query AD metadata: $_" -ForegroundColor Red
+        return [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
+    }
+
+    $leftovers = @($ntdsLeftover) + @($serverLeftover) | Where-Object { $_ }
+
+    if (@($leftovers).Count -eq 0) {
+        Write-Host "  [OK] No leftover AD metadata found for '$target' - demotion was clean." -ForegroundColor Green
+        return [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Skipped"; Timestamp = $ts; Detail = "No leftover metadata found" }
+    }
+
+    Write-Host ""
+    Write-Host "  Found $(@($leftovers).Count) leftover AD object(s) for '$target':" -ForegroundColor Yellow
+    $leftovers | ForEach-Object { Write-Host "    - $($_.DistinguishedName)" }
+    Write-Host ""
+    Write-Host "  [WARNING] Removing these objects directly modifies AD outside the normal demotion path." -ForegroundColor Red
+    $confirm = Read-Host "  Type the DC name ('$target') to confirm removal"
+    if ($confirm -ne $target) {
+        Write-Host "  [CANCELLED] Confirmation did not match. No changes made." -ForegroundColor Gray
+        return [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Cancelled"; Timestamp = $ts; Detail = "Confirmation did not match" }
+    }
+
+    try {
+        foreach ($obj in $leftovers) {
+            Remove-ADObject -Identity $obj.DistinguishedName -Recursive -Confirm:$false -ErrorAction Stop
+        }
+        Write-Host "  [OK] Removed $(@($leftovers).Count) leftover AD object(s). Action by $env:USERNAME at $ts" -ForegroundColor Green
+        $record = [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Success"; Timestamp = $ts; Detail = "Removed $(@($leftovers).Count) leftover object(s)" }
+    } catch {
+        Write-Host "  [ERROR] Metadata cleanup failed: $_" -ForegroundColor Red
+        $record = [PSCustomObject]@{ Step = "AD Metadata Cleanup"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
+    }
+
+    if (-not $SkipExport) {
+        $choice = Read-Host "  Export to HTML report? [Y/N]"
+        if ($choice -match "^[Yy]") {
+            $path = Export-HTMLReport -Data @{ Steps = @($record) } -ReportType "DCDecommission" -Username $target -Source "LocalAD"
+            Write-Host "  [OK] Report saved: $path" -ForegroundColor Green
+        }
+    }
+
+    return $record
+}
