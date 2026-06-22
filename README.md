@@ -3,6 +3,8 @@
 
 > A unified PowerShell toolkit for Active Directory and Entra ID administration. Combines user management, computer search, domain health diagnostics, group management, account actions, and security auditing — all from a single interactive launcher with HTML report export.
 
+> **Use at your own risk.** This tool can take destructive actions against live Active Directory and Entra ID environments (account changes, domain controller demotion, AD object removal). There is no warranty. Review each feature's behavior, test in a non-production environment first, and confirm you understand a step before approving it.
+
 ---
 
 ## Features
