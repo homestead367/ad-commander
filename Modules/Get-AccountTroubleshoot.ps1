@@ -85,16 +85,24 @@ function Get-AccountLockoutTrace {
 
             $trace += [PSCustomObject]@{
                 DC                     = $dc.HostName
-                Reachable              = $true
+                Status                 = "OK"
                 BadPwdCount            = $u.badPwdCount
                 LastBadPasswordAttempt = if ($u.lastBadPasswordAttempt) { $u.lastBadPasswordAttempt.ToString("yyyy-MM-dd HH:mm:ss") } else { "N/A" }
                 LockedOut              = $u.LockedOut
                 AccountLockoutTime     = if ($u.AccountLockoutTime) { $u.AccountLockoutTime.ToString("yyyy-MM-dd HH:mm:ss") } else { "N/A" }
                 LastBadPasswordRaw     = $u.lastBadPasswordAttempt
             }
+        } catch [Microsoft.ActiveDirectory.Management.ADIdentityNotFoundException] {
+            # DC answered but doesn't have the object yet (e.g. replication lag) -
+            # distinct from a DC that couldn't be reached at all.
+            $trace += [PSCustomObject]@{
+                DC = $dc.HostName; Status = "NotFound"; BadPwdCount = "N/A"
+                LastBadPasswordAttempt = "N/A"; LockedOut = "N/A"; AccountLockoutTime = "N/A"
+                LastBadPasswordRaw = $null
+            }
         } catch {
             $trace += [PSCustomObject]@{
-                DC = $dc.HostName; Reachable = $false; BadPwdCount = "N/A"
+                DC = $dc.HostName; Status = "Unreachable"; BadPwdCount = "N/A"
                 LastBadPasswordAttempt = "N/A"; LockedOut = "N/A"; AccountLockoutTime = "N/A"
                 LastBadPasswordRaw = $null
             }
@@ -120,7 +128,7 @@ function Show-TroubleshootTable {
         Write-Host ("  {0,-25} {1}" -f "$key :", $val)
     }
 
-    $likelySource = $DCTrace | Where-Object { $_.Reachable -and $_.LastBadPasswordRaw } |
+    $likelySource = $DCTrace | Where-Object { $_.Status -eq "OK" -and $_.LastBadPasswordRaw } |
         Sort-Object LastBadPasswordRaw -Descending | Select-Object -First 1
 
     Write-Host "`n  BAD PASSWORD / LOCKOUT TRACE BY DC ($($DCTrace.Count))" -ForegroundColor Cyan
@@ -130,7 +138,11 @@ function Show-TroubleshootTable {
     } else {
         Write-Host ("  {0,-25} {1,-10} {2,-22} {3}" -f "DC", "BadPwd#", "Last Bad Attempt", "Locked Out") -ForegroundColor Gray
         foreach ($d in $DCTrace) {
-            if (-not $d.Reachable) {
+            if ($d.Status -eq "NotFound") {
+                Write-Host ("  {0,-25} {1}" -f $d.DC, "[NOT FOUND - possible replication lag]") -ForegroundColor Yellow
+                continue
+            }
+            if ($d.Status -eq "Unreachable") {
                 Write-Host ("  {0,-25} {1}" -f $d.DC, "[UNREACHABLE]") -ForegroundColor DarkGray
                 continue
             }

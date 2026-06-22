@@ -336,7 +336,11 @@ function Build-TroubleshootHTML {
     $html += "<h3>Bad Password / Lockout Trace by DC ($($Data.DCTrace.Count))</h3>"
     $html += "<table><thead><tr><th>DC</th><th>Bad Pwd Count</th><th>Last Bad Attempt</th><th>Locked Out</th></tr></thead><tbody>"
     foreach ($d in $Data.DCTrace) {
-        if (-not $d.Reachable) {
+        if ($d.Status -eq "NotFound") {
+            $html += "<tr class='warn'><td>$(HE $d.DC)</td><td colspan='3'>Not found on this DC (possible replication lag)</td></tr>`n"
+            continue
+        }
+        if ($d.Status -eq "Unreachable") {
             $html += "<tr class='warn'><td>$(HE $d.DC)</td><td colspan='3'>Unreachable</td></tr>`n"
             continue
         }
