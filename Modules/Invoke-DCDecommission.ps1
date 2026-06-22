@@ -296,3 +296,58 @@ function Invoke-DCDnsCleanup {
 
     return $record
 }
+
+function Invoke-DCDemote {
+    param(
+        [string]$TargetDC,
+        [PSCustomObject]$Readiness,
+        [switch]$SkipExport
+    )
+
+    if (-not $Readiness) {
+        $Readiness = Test-DCDecommissionReadiness -TargetDC $TargetDC
+        if (-not $Readiness) { return $null }
+        Show-DCDecommissionReadiness -Readiness $Readiness
+    }
+    if ($Readiness.Blocked) { return $null }
+
+    $target = $Readiness.TargetDC
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+    Write-Host ""
+    Write-Host "  [WARNING] This will DEMOTE '$target' as a domain controller. This is irreversible without re-promoting." -ForegroundColor Red
+    $confirm = Read-Host "  Proceed with demotion? [Y/N]"
+    if ($confirm -notmatch "^[Yy]") {
+        Write-Host "  [CANCELLED] No changes made." -ForegroundColor Gray
+        return [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Cancelled"; Timestamp = $ts; Detail = "Operator declined confirmation" }
+    }
+
+    $localAdminPwd = Read-Host "  Enter a local Administrator password to set on '$target' after demotion" -AsSecureString
+
+    try {
+        if ($Readiness.IsLocal) {
+            Uninstall-ADDSDomainController -LocalAdministratorPassword $localAdminPwd -RemoveDnsDelegation -Confirm:$false -ErrorAction Stop | Out-Null
+        } else {
+            $cred = Get-Credential -Message "Credentials with rights to demote '$target'"
+            Invoke-Command -ComputerName $target -Credential $cred -ArgumentList $localAdminPwd -ScriptBlock {
+                param($pwd)
+                Uninstall-ADDSDomainController -LocalAdministratorPassword $pwd -RemoveDnsDelegation -Confirm:$false -ErrorAction Stop
+            } -ErrorAction Stop | Out-Null
+        }
+        Write-Host "  [OK] '$target' demoted successfully. Action by $env:USERNAME at $ts" -ForegroundColor Green
+        $record = [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Success"; Timestamp = $ts; Detail = "Demoted $target" }
+    } catch {
+        Write-Host "  [ERROR] Demotion failed: $_" -ForegroundColor Red
+        $record = [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
+    }
+
+    if (-not $SkipExport) {
+        $choice = Read-Host "  Export to HTML report? [Y/N]"
+        if ($choice -match "^[Yy]") {
+            $path = Export-HTMLReport -Data @{ Steps = @($record) } -ReportType "DCDecommission" -Username $target -Source "LocalAD"
+            Write-Host "  [OK] Report saved: $path" -ForegroundColor Green
+        }
+    }
+
+    return $record
+}
