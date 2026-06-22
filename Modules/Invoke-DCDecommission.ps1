@@ -451,3 +451,73 @@ function Invoke-DCMetadataCleanup {
 
     return $record
 }
+
+function Invoke-DCDecommissionVerify {
+    param(
+        [string]$TargetDC,
+        [switch]$SkipExport
+    )
+
+    if ([string]::IsNullOrWhiteSpace($TargetDC)) {
+        $TargetDC = Read-Host "`nEnter the domain controller name to verify decommission for"
+    }
+    if ([string]::IsNullOrWhiteSpace($TargetDC)) {
+        Write-Host "[ERROR] No target DC provided." -ForegroundColor Red
+        return $null
+    }
+
+    $ts        = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $shortName = ($TargetDC -split '\.')[0]
+    $checks    = @()
+
+    try {
+        $stillListed = Get-ADDomainController -Filter * -ErrorAction Stop | Where-Object {
+            $_.HostName -eq $TargetDC -or $_.Name -eq $shortName
+        }
+        $checks += [PSCustomObject]@{ Check = "Removed from AD domain controller list"; Pass = (@($stillListed).Count -eq 0) }
+    } catch {
+        $checks += [PSCustomObject]@{ Check = "Removed from AD domain controller list"; Pass = $false }
+    }
+
+    try {
+        $domain  = Get-ADDomain -ErrorAction Stop
+        $records = Get-DnsServerResourceRecord -ZoneName $domain.DNSRoot -ErrorAction Stop |
+            Where-Object { $_.HostName -eq $shortName }
+        $checks += [PSCustomObject]@{ Check = "No lingering DNS records"; Pass = (@($records).Count -eq 0) }
+    } catch {
+        $checks += [PSCustomObject]@{ Check = "No lingering DNS records (could not query DNS)"; Pass = $false }
+    }
+
+    try {
+        $domain         = Get-ADDomain -ErrorAction Stop
+        $serverLeftover = Get-ADObject -Filter "ObjectClass -eq 'server' -and Name -eq '$shortName'" `
+            -SearchBase "CN=Sites,CN=Configuration,$($domain.DistinguishedName)" -ErrorAction SilentlyContinue
+        $checks += [PSCustomObject]@{ Check = "No lingering Sites & Services objects"; Pass = (@($serverLeftover).Count -eq 0) }
+    } catch {
+        $checks += [PSCustomObject]@{ Check = "No lingering Sites & Services objects"; Pass = $false }
+    }
+
+    Write-Host ""
+    Write-Host "  DECOMMISSION VERIFICATION - $TargetDC" -ForegroundColor Cyan
+    Write-Host ("-" * 60) -ForegroundColor DarkGray
+    foreach ($c in $checks) {
+        $status = if ($c.Pass) { "[PASS]" } else { "[FAIL]" }
+        $color  = if ($c.Pass) { "Green" } else { "Red" }
+        Write-Host ("  {0,-8} {1}" -f $status, $c.Check) -ForegroundColor $color
+    }
+    Write-Host ""
+
+    $overall = if (@($checks | Where-Object { -not $_.Pass }).Count -eq 0) { "Success" } else { "Failed" }
+    $detail  = ($checks | ForEach-Object { "$($_.Check): $(if ($_.Pass) { 'PASS' } else { 'FAIL' })" }) -join "; "
+    $record  = [PSCustomObject]@{ Step = "Verify Decommission"; Status = $overall; Timestamp = $ts; Detail = $detail }
+
+    if (-not $SkipExport) {
+        $choice = Read-Host "  Export to HTML report? [Y/N]"
+        if ($choice -match "^[Yy]") {
+            $path = Export-HTMLReport -Data @{ Steps = @($record) } -ReportType "DCDecommission" -Username $TargetDC -Source "LocalAD"
+            Write-Host "  [OK] Report saved: $path" -ForegroundColor Green
+        }
+    }
+
+    return $record
+}
