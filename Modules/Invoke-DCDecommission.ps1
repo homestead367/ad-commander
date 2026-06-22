@@ -249,14 +249,16 @@ function Invoke-DCDnsCleanup {
         $domain    = (Get-ADDomain -ErrorAction Stop).DNSRoot
         $shortName = ($target -split '\.')[0]
 
-        $surviving = Get-ADDomainController -Filter * -ErrorAction Stop |
-            Where-Object { $_.HostName -ne $target } | Select-Object -First 1
+        $surviving = Get-ADDomainController -Filter * -ErrorAction Stop | Where-Object {
+            $candidateShort = ($_.HostName -split '\.')[0]
+            $candidateShort -notlike $shortName -and $_.HostName -notlike $target
+        } | Select-Object -First 1
         if (-not $surviving) {
             throw "No other domain controller available to query DNS records from."
         }
 
         $records = Get-DnsServerResourceRecord -ZoneName $domain -ComputerName $surviving.HostName -ErrorAction Stop |
-            Where-Object { $_.HostName -eq $shortName }
+            Where-Object { $_.HostName -eq $shortName -and $_.RecordType -in @("A","AAAA") }
 
         foreach ($rec in $records) {
             Remove-DnsServerResourceRecord -ZoneName $domain -ComputerName $surviving.HostName -InputObject $rec -Force -ErrorAction Stop
