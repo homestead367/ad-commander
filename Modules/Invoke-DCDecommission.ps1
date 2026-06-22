@@ -148,3 +148,63 @@ function Show-DCDecommissionReadiness {
         Write-Host ""
     }
 }
+
+function Invoke-DCDhcpCleanup {
+    param(
+        [string]$TargetDC,
+        [PSCustomObject]$Readiness,
+        [switch]$SkipExport
+    )
+
+    if (-not $Readiness) {
+        $Readiness = Test-DCDecommissionReadiness -TargetDC $TargetDC
+        if (-not $Readiness) { return $null }
+        Show-DCDecommissionReadiness -Readiness $Readiness
+    }
+    if ($Readiness.Blocked) { return $null }
+
+    $target = $Readiness.TargetDC
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+    if (-not $Readiness.DhcpInstalled) {
+        Write-Host "  [INFO] DHCP Server role not present on '$target' - nothing to clean up." -ForegroundColor Cyan
+        return [PSCustomObject]@{ Step = "DHCP Cleanup"; Status = "Skipped"; Timestamp = $ts; Detail = "DHCP role not installed" }
+    }
+
+    Write-Host ""
+    Write-Host "  This will unauthorize '$target' as a DHCP server in AD and uninstall the DHCP Server feature." -ForegroundColor Yellow
+    $confirm = Read-Host "  Proceed? [Y/N]"
+    if ($confirm -notmatch "^[Yy]") {
+        Write-Host "  [CANCELLED] No changes made." -ForegroundColor Gray
+        return [PSCustomObject]@{ Step = "DHCP Cleanup"; Status = "Cancelled"; Timestamp = $ts; Detail = "Operator declined confirmation" }
+    }
+
+    try {
+        Remove-DhcpServerInDC -DnsName $target -ErrorAction Stop
+        Write-Host "  [OK] '$target' unauthorized as DHCP server in AD." -ForegroundColor Green
+
+        if ($Readiness.IsLocal) {
+            Uninstall-WindowsFeature -Name DHCP -ErrorAction Stop | Out-Null
+        } else {
+            Invoke-Command -ComputerName $target -ScriptBlock {
+                Uninstall-WindowsFeature -Name DHCP -ErrorAction Stop
+            } -ErrorAction Stop | Out-Null
+        }
+        Write-Host "  [OK] DHCP Server feature uninstalled on '$target'. Action by $env:USERNAME at $ts" -ForegroundColor Green
+
+        $record = [PSCustomObject]@{ Step = "DHCP Cleanup"; Status = "Success"; Timestamp = $ts; Detail = "Unauthorized in AD and feature uninstalled on $target" }
+    } catch {
+        Write-Host "  [ERROR] DHCP cleanup failed: $_" -ForegroundColor Red
+        $record = [PSCustomObject]@{ Step = "DHCP Cleanup"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
+    }
+
+    if (-not $SkipExport) {
+        $choice = Read-Host "  Export to HTML report? [Y/N]"
+        if ($choice -match "^[Yy]") {
+            $path = Export-HTMLReport -Data @{ Steps = @($record) } -ReportType "DCDecommission" -Username $target -Source "LocalAD"
+            Write-Host "  [OK] Report saved: $path" -ForegroundColor Green
+        }
+    }
+
+    return $record
+}
