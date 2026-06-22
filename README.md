@@ -123,7 +123,7 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 - **AD Health Check** requires RSAT tools and falls back gracefully when individual tools (e.g. `dcdiag`, `repadmin`) are unavailable.
 - This tool performs **read-only** operations except for Unlock Account and Force Password Reset, both of which require explicit confirmation.
 - **RADIUS / NPS Audit** queries servers via WinRM (`Invoke-Command`) and requires WinRM connectivity/permissions to the target servers.
-- **Account Troubleshooting Report** queries every domain controller individually for bad-password/lockout attributes, so it's slower than other lookups but pinpoints which DC is likely the source of an account lockout.
+- **Account Troubleshooting Report** queries every domain controller individually for bad-password/lockout attributes, so it's slower than other lookups but pinpoints which DC is likely the source of an account lockout. It also reports last password change, computed password expiry date, and last logon (replicated attribute — approximate, not real-time).
 
 ---
 
@@ -134,3 +134,4 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 | 1.0 | 2026-06-09 | Initial release — combines ADInsight + AD-Health-Checker + 6 new admin features |
 | 1.1 | 2026-06-10 | Added RADIUS / NPS Audit (option 15) |
 | 1.2 | 2026-06-21 | Added Account Troubleshooting Report (option 13); renumbered menu so Exit is always last |
+| 1.3 | 2026-06-22 | Account Troubleshooting Report: added last password change, password expiry date, and last logon fields |
