@@ -11,8 +11,8 @@ function Invoke-AccountTroubleshootReport {
     try {
         $props = @(
             "DisplayName","SamAccountName","Enabled","AccountExpirationDate",
-            "PasswordExpired","PasswordNeverExpires","LockedOut","LogonHours",
-            "LogonWorkstations","MemberOf"
+            "PasswordExpired","PasswordNeverExpires","PasswordLastSet","LockedOut","LogonHours",
+            "LogonWorkstations","MemberOf","LastLogonDate","msDS-UserPasswordExpiryTimeComputed"
         )
         $user = Get-ADUser -Filter {
             SamAccountName -eq $query -or DisplayName -eq $query
@@ -50,6 +50,12 @@ function Invoke-AccountTroubleshootReport {
         "Account Expiration"    = if ($user.AccountExpirationDate) { $user.AccountExpirationDate.ToString("yyyy-MM-dd") } else { "Never" }
         "Password Expired"      = $user.PasswordExpired
         "Password Never Expires"= $user.PasswordNeverExpires
+        "Last Password Change"  = if ($user.PasswordLastSet) { $user.PasswordLastSet.ToString("yyyy-MM-dd HH:mm:ss") } else { "Never" }
+        "Password Expires On"   = if ($user.PasswordNeverExpires) { "Never" }
+                                   elseif ($user.'msDS-UserPasswordExpiryTimeComputed' -and $user.'msDS-UserPasswordExpiryTimeComputed' -lt [Int64]::MaxValue) {
+                                       [datetime]::FromFileTime($user.'msDS-UserPasswordExpiryTimeComputed').ToString("yyyy-MM-dd HH:mm:ss")
+                                   } else { "Unknown" }
+        "Last Logon"            = if ($user.LastLogonDate) { $user.LastLogonDate.ToString("yyyy-MM-dd HH:mm:ss") } else { "Never / Unknown" }
         "Locked Out"            = $user.LockedOut
         "Logon Hours"           = $logonHours
         "Logon Workstations"    = if ($user.LogonWorkstations) { $user.LogonWorkstations } else { "Not Restricted" }
