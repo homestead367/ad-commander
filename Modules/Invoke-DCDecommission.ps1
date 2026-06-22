@@ -214,3 +214,83 @@ function Invoke-DCDhcpCleanup {
 
     return $record
 }
+
+function Invoke-DCDnsCleanup {
+    param(
+        [string]$TargetDC,
+        [PSCustomObject]$Readiness,
+        [switch]$SkipExport
+    )
+
+    if (-not $Readiness) {
+        $Readiness = Test-DCDecommissionReadiness -TargetDC $TargetDC
+        if (-not $Readiness) { return $null }
+        Show-DCDecommissionReadiness -Readiness $Readiness
+    }
+    if ($Readiness.Blocked) { return $null }
+
+    $target = $Readiness.TargetDC
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+
+    if (-not $Readiness.DnsInstalled) {
+        Write-Host "  [INFO] DNS Server role not present on '$target' - nothing to clean up." -ForegroundColor Cyan
+        return [PSCustomObject]@{ Step = "DNS Cleanup"; Status = "Skipped"; Timestamp = $ts; Detail = "DNS role not installed" }
+    }
+
+    Write-Host ""
+    Write-Host "  This will remove DNS records referencing '$target' and uninstall the DNS Server feature." -ForegroundColor Yellow
+    $confirm = Read-Host "  Proceed? [Y/N]"
+    if ($confirm -notmatch "^[Yy]") {
+        Write-Host "  [CANCELLED] No changes made." -ForegroundColor Gray
+        return [PSCustomObject]@{ Step = "DNS Cleanup"; Status = "Cancelled"; Timestamp = $ts; Detail = "Operator declined confirmation" }
+    }
+
+    try {
+        $domain    = (Get-ADDomain -ErrorAction Stop).DNSRoot
+        $shortName = ($target -split '\.')[0]
+
+        $surviving = Get-ADDomainController -Filter * -ErrorAction Stop |
+            Where-Object { $_.HostName -ne $target } | Select-Object -First 1
+        if (-not $surviving) {
+            throw "No other domain controller available to query DNS records from."
+        }
+
+        $records = Get-DnsServerResourceRecord -ZoneName $domain -ComputerName $surviving.HostName -ErrorAction Stop |
+            Where-Object { $_.HostName -eq $shortName }
+
+        foreach ($rec in $records) {
+            Remove-DnsServerResourceRecord -ZoneName $domain -ComputerName $surviving.HostName -InputObject $rec -Force -ErrorAction Stop
+        }
+        Write-Host "  [OK] Removed $($records.Count) DNS record(s) referencing '$target'." -ForegroundColor Green
+
+        if ($Readiness.IsLocal) {
+            $uninstallResult = Uninstall-WindowsFeature -Name DNS -ErrorAction Stop
+        } else {
+            $uninstallResult = Invoke-Command -ComputerName $target -ScriptBlock {
+                Uninstall-WindowsFeature -Name DNS -ErrorAction Stop
+            } -ErrorAction Stop
+        }
+
+        if (-not $uninstallResult.Success) {
+            throw "DNS Server feature removal reported failure on '$target'."
+        }
+
+        $restartNote = if ($uninstallResult.RestartNeeded -eq "Yes") { " A restart is required to complete removal." } else { "" }
+        Write-Host "  [OK] DNS Server feature uninstalled on '$target'.$restartNote Action by $env:USERNAME at $ts" -ForegroundColor Green
+
+        $record = [PSCustomObject]@{ Step = "DNS Cleanup"; Status = "Success"; Timestamp = $ts; Detail = "Removed $($records.Count) DNS record(s) and uninstalled feature on $target.$restartNote" }
+    } catch {
+        Write-Host "  [ERROR] DNS cleanup failed: $_" -ForegroundColor Red
+        $record = [PSCustomObject]@{ Step = "DNS Cleanup"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
+    }
+
+    if (-not $SkipExport) {
+        $choice = Read-Host "  Export to HTML report? [Y/N]"
+        if ($choice -match "^[Yy]") {
+            $path = Export-HTMLReport -Data @{ Steps = @($record) } -ReportType "DCDecommission" -Username $target -Source "LocalAD"
+            Write-Host "  [OK] Report saved: $path" -ForegroundColor Green
+        }
+    }
+
+    return $record
+}
