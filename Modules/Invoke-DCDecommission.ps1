@@ -184,15 +184,21 @@ function Invoke-DCDhcpCleanup {
         Write-Host "  [OK] '$target' unauthorized as DHCP server in AD." -ForegroundColor Green
 
         if ($Readiness.IsLocal) {
-            Uninstall-WindowsFeature -Name DHCP -ErrorAction Stop | Out-Null
+            $uninstallResult = Uninstall-WindowsFeature -Name DHCP -ErrorAction Stop
         } else {
-            Invoke-Command -ComputerName $target -ScriptBlock {
+            $uninstallResult = Invoke-Command -ComputerName $target -ScriptBlock {
                 Uninstall-WindowsFeature -Name DHCP -ErrorAction Stop
-            } -ErrorAction Stop | Out-Null
+            } -ErrorAction Stop
         }
-        Write-Host "  [OK] DHCP Server feature uninstalled on '$target'. Action by $env:USERNAME at $ts" -ForegroundColor Green
 
-        $record = [PSCustomObject]@{ Step = "DHCP Cleanup"; Status = "Success"; Timestamp = $ts; Detail = "Unauthorized in AD and feature uninstalled on $target" }
+        if (-not $uninstallResult.Success) {
+            throw "DHCP Server feature removal reported failure on '$target'."
+        }
+
+        $restartNote = if ($uninstallResult.RestartNeeded -eq "Yes") { " A restart is required to complete removal." } else { "" }
+        Write-Host "  [OK] DHCP Server feature uninstalled on '$target'.$restartNote Action by $env:USERNAME at $ts" -ForegroundColor Green
+
+        $record = [PSCustomObject]@{ Step = "DHCP Cleanup"; Status = "Success"; Timestamp = $ts; Detail = "Unauthorized in AD and feature uninstalled on $target.$restartNote" }
     } catch {
         Write-Host "  [ERROR] DHCP cleanup failed: $_" -ForegroundColor Red
         $record = [PSCustomObject]@{ Step = "DHCP Cleanup"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
