@@ -324,21 +324,46 @@ function Invoke-DCDemote {
 
     $localAdminPwd = Read-Host "  Enter a local Administrator password to set on '$target' after demotion" -AsSecureString
 
+    Import-Module ADDSDeployment -ErrorAction SilentlyContinue
+
     try {
-        if ($Readiness.IsLocal) {
-            Uninstall-ADDSDomainController -LocalAdministratorPassword $localAdminPwd -RemoveDnsDelegation -Confirm:$false -ErrorAction Stop | Out-Null
-        } else {
-            $cred = Get-Credential -Message "Credentials with rights to demote '$target'"
-            Invoke-Command -ComputerName $target -Credential $cred -ArgumentList $localAdminPwd -ScriptBlock {
-                param($pwd)
-                Uninstall-ADDSDomainController -LocalAdministratorPassword $pwd -RemoveDnsDelegation -Confirm:$false -ErrorAction Stop
-            } -ErrorAction Stop | Out-Null
+        try {
+            $demoteParams = @{
+                LocalAdministratorPassword = $localAdminPwd
+                Confirm                    = $false
+                ErrorAction                = "Stop"
+            }
+            if ($Readiness.DnsInstalled) {
+                $demoteParams["RemoveDnsDelegation"] = $true
+            }
+
+            if ($Readiness.IsLocal) {
+                $demoteResult = Uninstall-ADDSDomainController @demoteParams
+            } else {
+                $cred = Get-Credential -Message "Credentials with rights to demote '$target'"
+                if (-not $cred) {
+                    Write-Host "  [CANCELLED] No changes made." -ForegroundColor Gray
+                    return [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Cancelled"; Timestamp = $ts; Detail = "Operator cancelled credential prompt" }
+                }
+                # NOTE: a SecureString can be passed across this single Invoke-Command hop, but if
+                # Uninstall-ADDSDomainController itself needs to reach other DCs using the operator's
+                # credentials (double-hop), CredSSP or similar delegation may be required - this is a
+                # known PowerShell remoting limitation, not a bug in this script.
+                $demoteResult = Invoke-Command -ComputerName $target -Credential $cred -ArgumentList $demoteParams -ScriptBlock {
+                    param($demoteParams)
+                    Uninstall-ADDSDomainController @demoteParams
+                } -ErrorAction Stop
+            }
+
+            $rebootNote = " A reboot will occur automatically to finish removing AD DS."
+            Write-Host "  [OK] '$target' demoted successfully.$rebootNote Action by $env:USERNAME at $ts" -ForegroundColor Green
+            $record = [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Success"; Timestamp = $ts; Detail = "Demoted $target.$rebootNote" }
+        } catch {
+            Write-Host "  [ERROR] Demotion failed: $_" -ForegroundColor Red
+            $record = [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
         }
-        Write-Host "  [OK] '$target' demoted successfully. Action by $env:USERNAME at $ts" -ForegroundColor Green
-        $record = [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Success"; Timestamp = $ts; Detail = "Demoted $target" }
-    } catch {
-        Write-Host "  [ERROR] Demotion failed: $_" -ForegroundColor Red
-        $record = [PSCustomObject]@{ Step = "Demote Domain Controller"; Status = "Failed"; Timestamp = $ts; Detail = "$_" }
+    } finally {
+        if ($localAdminPwd) { $localAdminPwd.Dispose() }
     }
 
     if (-not $SkipExport) {
