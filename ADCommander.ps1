@@ -32,6 +32,7 @@ Unblock-File -LiteralPath $PSCommandPath -ErrorAction SilentlyContinue
 . (Join-Path $modulePath "Get-PrivilegedAccess.ps1")
 . (Join-Path $modulePath "Get-GroupInfo.ps1")
 . (Join-Path $modulePath "Invoke-AccountActions.ps1")
+. (Join-Path $modulePath "Get-AccountTroubleshoot.ps1")
 . (Join-Path $modulePath "Get-RadiusInfo.ps1")
 
 function Show-Banner {
@@ -146,19 +147,23 @@ function Show-Menu {
     Write-Host "    [12]  Force Password Reset" -NoNewline
     if (-not $isLocal) { Write-Host "  (Local AD only)" -ForegroundColor DarkGray } else { Write-Host "" }
     Write-Host ""
+    Write-Host "  -- TROUBLESHOOTING --" -ForegroundColor DarkCyan
+    Write-Host "    [13]  Account Troubleshooting Report" -NoNewline
+    if (-not $isLocal) { Write-Host "  (Local AD only)" -ForegroundColor DarkGray } else { Write-Host "" }
+    Write-Host ""
     Write-Host "  -- AUTHENTICATION INFRASTRUCTURE --" -ForegroundColor DarkCyan
-    Write-Host "    [15]  RADIUS / NPS Audit" -NoNewline
+    Write-Host "    [14]  RADIUS / NPS Audit" -NoNewline
     if (-not $isLocal) { Write-Host "  (Local AD only)" -ForegroundColor DarkGray } else { Write-Host "" }
     Write-Host ""
     Write-Host "  -- SYSTEM --" -ForegroundColor DarkCyan
-    Write-Host "    [13]  Change Source"
-    Write-Host "    [14]  Exit"
+    Write-Host "    [15]  Change Source"
+    Write-Host "    [16]  Exit"
     Write-Host ""
 }
 
 function Assert-LocalAD {
     if ((Get-ADSource) -ne "LocalAD") {
-        Write-Host "  [INFO] This feature requires Local AD. Use [13] to change source." -ForegroundColor Yellow
+        Write-Host "  [INFO] This feature requires Local AD. Use [15] to change source." -ForegroundColor Yellow
         return $false
     }
     return $true
@@ -198,8 +203,9 @@ while ($running) {
         "10" { Invoke-GroupComparison }
         "11" { if (Assert-LocalAD) { Invoke-UnlockAccount } }
         "12" { if (Assert-LocalAD) { Invoke-ForcePasswordReset } }
-        "15" { if (Assert-LocalAD) { Invoke-RadiusAudit } }
-        "13" {
+        "13" { if (Assert-LocalAD) { Invoke-AccountTroubleshootReport } }
+        "14" { if (Assert-LocalAD) { Invoke-RadiusAudit } }
+        "15" {
             Show-Banner
             Install-ADCommanderRequirements
             $connected = $false
@@ -211,10 +217,10 @@ while ($running) {
                 }
             }
         }
-        "14" {
+        "16" {
             Write-Host "`n  Goodbye.`n" -ForegroundColor Cyan
             $running = $false
         }
-        default { Write-Host "  [ERROR] Invalid option. Enter 1-15." -ForegroundColor Red }
+        default { Write-Host "  [ERROR] Invalid option. Enter 1-16." -ForegroundColor Red }
     }
 }

@@ -21,7 +21,8 @@
 | 10 | Compare Two Groups | ✓ | ✓ |
 | 11 | Unlock Account | ✓ | |
 | 12 | Force Password Reset | ✓ | |
-| 15 | RADIUS / NPS Audit | ✓ | |
+| 13 | Account Troubleshooting Report | ✓ | |
+| 14 | RADIUS / NPS Audit | ✓ | |
 
 ---
 
@@ -71,6 +72,7 @@ ADCommander/
 │   ├── Get-GroupInfo.ps1            # Group search and comparison
 │   ├── Invoke-AccountActions.ps1    # Unlock accounts, force PW reset
 │   ├── Get-PrivilegedAccess.ps1     # Privileged group audit
+│   ├── Get-AccountTroubleshoot.ps1  # Per-account lockout/bad-password trace
 │   └── Get-RadiusInfo.ps1           # RADIUS/NPS role + client audit
 └── Reports/                         # HTML reports saved here (auto-created)
 ```
@@ -121,6 +123,7 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 - **AD Health Check** requires RSAT tools and falls back gracefully when individual tools (e.g. `dcdiag`, `repadmin`) are unavailable.
 - This tool performs **read-only** operations except for Unlock Account and Force Password Reset, both of which require explicit confirmation.
 - **RADIUS / NPS Audit** queries servers via WinRM (`Invoke-Command`) and requires WinRM connectivity/permissions to the target servers.
+- **Account Troubleshooting Report** queries every domain controller individually for bad-password/lockout attributes, so it's slower than other lookups but pinpoints which DC is likely the source of an account lockout.
 
 ---
 
@@ -130,3 +133,4 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 |---|---|---|
 | 1.0 | 2026-06-09 | Initial release — combines ADInsight + AD-Health-Checker + 6 new admin features |
 | 1.1 | 2026-06-10 | Added RADIUS / NPS Audit (option 15) |
+| 1.2 | 2026-06-21 | Added Account Troubleshooting Report (option 13); renumbered menu so Exit is always last |

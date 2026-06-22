@@ -9,7 +9,8 @@ function Export-HTMLReport {
         [Parameter(Mandatory)]
         [ValidateSet("SearchResult","Comparison","GPOReport","HealthCheck",
                      "StaleAccounts","PasswordExpiry","ComputerSearch",
-                     "GroupInfo","GroupComparison","PrivilegedAccess","RadiusAudit")]
+                     "GroupInfo","GroupComparison","PrivilegedAccess","RadiusAudit",
+                     "AccountTroubleshoot")]
         [string]$ReportType,
 
         [Parameter(Mandatory)]
@@ -98,6 +99,7 @@ function Export-HTMLReport {
         "GroupComparison" { Build-GroupCompHTML  -Data $Data }
         "PrivilegedAccess"{ Build-PrivHTML       -Data $Data }
         "RadiusAudit"     { Build-RadiusHTML     -Data $Data }
+        "AccountTroubleshoot" { Build-TroubleshootHTML -Data $Data }
     }
 
     ($hdr + $body + $ftr) | Out-File -FilePath $filepath -Encoding UTF8
@@ -318,5 +320,30 @@ function Build-RadiusHTML {
         }
         $html += "</tbody></table>"
     }
+    return $html
+}
+
+function Build-TroubleshootHTML {
+    param([hashtable]$Data)
+    $html = "<h2>Account Troubleshooting Report</h2>"
+
+    $html += "<h3>Account State</h3><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>"
+    foreach ($k in $Data.State.Keys) {
+        $html += "<tr><td><strong>$(HE $k)</strong></td><td>$(HE ([string]$Data.State[$k]))</td></tr>`n"
+    }
+    $html += "</tbody></table>"
+
+    $html += "<h3>Bad Password / Lockout Trace by DC ($($Data.DCTrace.Count))</h3>"
+    $html += "<table><thead><tr><th>DC</th><th>Bad Pwd Count</th><th>Last Bad Attempt</th><th>Locked Out</th></tr></thead><tbody>"
+    foreach ($d in $Data.DCTrace) {
+        if (-not $d.Reachable) {
+            $html += "<tr class='warn'><td>$(HE $d.DC)</td><td colspan='3'>Unreachable</td></tr>`n"
+            continue
+        }
+        $css = if ($d.LockedOut -eq $true) { "danger" } else { "" }
+        $html += "<tr class='$css'><td>$(HE $d.DC)</td><td>$(HE ([string]$d.BadPwdCount))</td>" +
+                 "<td>$(HE $d.LastBadPasswordAttempt)</td><td>$(HE ([string]$d.LockedOut))</td></tr>`n"
+    }
+    $html += "</tbody></table>"
     return $html
 }
