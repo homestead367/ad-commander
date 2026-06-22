@@ -20,6 +20,7 @@ function Test-DCDecommissionReadiness {
         Blocked                 = $false
         BlockReasons            = @()
         IsGlobalCatalog         = $false
+        GCSiteCheckFailed       = $false
         ReplicationPartnerCount = 0
         DnsInstalled            = $false
         DhcpInstalled           = $false
@@ -74,15 +75,19 @@ function Test-DCDecommissionReadiness {
     # Hard block: last Global Catalog in its site.
     $result.IsGlobalCatalog = [bool]$dc.IsGlobalCatalog
     if ($result.IsGlobalCatalog) {
+        $siteGCs = $null
         try {
-            $siteGCs = Get-ADDomainController -Filter { Site -eq $dc.Site -and IsGlobalCatalog -eq $true } -ErrorAction Stop
+            $allDCs  = Get-ADDomainController -Filter * -ErrorAction Stop
+            $siteGCs = $allDCs | Where-Object { $_.Site -eq $dc.Site -and $_.IsGlobalCatalog }
         } catch {
-            $siteGCs = @($dc)
+            $result.GCSiteCheckFailed = $true
         }
-        $otherGCs = $siteGCs | Where-Object { $_.Name -ne $dc.Name }
-        if (@($otherGCs).Count -eq 0) {
-            $result.Blocked = $true
-            $result.BlockReasons += "Is the only Global Catalog in site '$($dc.Site)'. Promote another DC in that site to GC first."
+        if (-not $result.GCSiteCheckFailed) {
+            $otherGCs = $siteGCs | Where-Object { $_.Name -ne $dc.Name }
+            if (@($otherGCs).Count -eq 0) {
+                $result.Blocked = $true
+                $result.BlockReasons += "Is the only Global Catalog in site '$($dc.Site)'. Promote another DC in that site to GC first."
+            }
         }
     }
 
@@ -129,6 +134,11 @@ function Show-DCDecommissionReadiness {
     Write-Host "  DNS Server role:      $($Readiness.DnsInstalled)"
     Write-Host "  DHCP Server role:     $($Readiness.DhcpInstalled)"
     Write-Host ""
+
+    if ($Readiness.GCSiteCheckFailed) {
+        Write-Host "  [WARNING] Could not verify Global Catalog uniqueness for this DC's site. Check manually before proceeding." -ForegroundColor Yellow
+        Write-Host ""
+    }
 
     if ($Readiness.Blocked) {
         Write-Host "  [BLOCKED] This DC cannot be decommissioned yet:" -ForegroundColor Red
