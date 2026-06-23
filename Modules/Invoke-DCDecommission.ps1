@@ -480,9 +480,17 @@ function Invoke-DCDecommissionVerify {
     }
 
     try {
-        $domain  = Get-ADDomain -ErrorAction Stop
-        $records = Get-DnsServerResourceRecord -ZoneName $domain.DNSRoot -ErrorAction Stop |
-            Where-Object { $_.HostName -eq $shortName }
+        $domain    = Get-ADDomain -ErrorAction Stop
+        $surviving = Get-ADDomainController -Filter * -ErrorAction Stop | Where-Object {
+            $candidateShort = ($_.HostName -split '\.')[0]
+            $candidateShort -notlike $shortName -and $_.HostName -notlike $TargetDC
+        } | Select-Object -First 1
+        if (-not $surviving) {
+            throw "No other domain controller available to query DNS records from."
+        }
+
+        $records = Get-DnsServerResourceRecord -ZoneName $domain.DNSRoot -ComputerName $surviving.HostName -ErrorAction Stop |
+            Where-Object { $_.HostName -eq $shortName -and $_.RecordType -in @("A","AAAA") }
         $checks += [PSCustomObject]@{ Check = "No lingering DNS records"; Pass = (@($records).Count -eq 0) }
     } catch {
         $checks += [PSCustomObject]@{ Check = "No lingering DNS records (could not query DNS)"; Pass = $false }
