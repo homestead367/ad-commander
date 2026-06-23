@@ -521,3 +521,93 @@ function Invoke-DCDecommissionVerify {
 
     return $record
 }
+
+function Invoke-DCFullDecommission {
+    $target = Read-Host "`nEnter the target domain controller (FQDN or hostname) to fully decommission"
+    if ([string]::IsNullOrWhiteSpace($target)) {
+        Write-Host "[ERROR] No target DC provided." -ForegroundColor Red
+        return
+    }
+
+    $readiness = Test-DCDecommissionReadiness -TargetDC $target
+    if (-not $readiness) { return }
+    Show-DCDecommissionReadiness -Readiness $readiness
+    if ($readiness.Blocked) { return }
+
+    Write-Host "  This will run DHCP Cleanup, DNS Cleanup, Demote, AD Metadata Cleanup, and Verify" -ForegroundColor Yellow
+    Write-Host "  against '$target', confirming before each step. It stops immediately if any step fails." -ForegroundColor Yellow
+
+    $steps = @(
+        @{ Name = "DHCP Cleanup";             Fn = { Invoke-DCDhcpCleanup       -TargetDC $target -Readiness $readiness -SkipExport } },
+        @{ Name = "DNS Cleanup";              Fn = { Invoke-DCDnsCleanup        -TargetDC $target -Readiness $readiness -SkipExport } },
+        @{ Name = "Demote Domain Controller"; Fn = { Invoke-DCDemote            -TargetDC $target -Readiness $readiness -SkipExport } },
+        @{ Name = "AD Metadata Cleanup";      Fn = { Invoke-DCMetadataCleanup   -TargetDC $target -Readiness $readiness -SkipExport } },
+        @{ Name = "Verify Decommission";      Fn = { Invoke-DCDecommissionVerify -TargetDC $target -SkipExport } }
+    )
+
+    $records = @()
+    foreach ($step in $steps) {
+        Write-Host ""
+        Write-Host "  -- $($step.Name) --" -ForegroundColor Cyan
+        $proceed = Read-Host "  Run this step now? [Y/N]"
+        if ($proceed -notmatch "^[Yy]") {
+            Write-Host "  [SKIPPED] $($step.Name) was skipped by operator." -ForegroundColor Gray
+            $records += [PSCustomObject]@{ Step = $step.Name; Status = "Skipped"; Timestamp = (Get-Date -Format "yyyy-MM-dd HH:mm:ss"); Detail = "Skipped by operator before running" }
+            continue
+        }
+
+        $result = & $step.Fn
+        if ($result) { $records += $result }
+
+        if ($result -and $result.Status -eq "Failed") {
+            Write-Host ""
+            Write-Host "  [STOPPED] Full Decommission halted after '$($step.Name)' failed." -ForegroundColor Red
+            break
+        }
+    }
+
+    Write-Host ""
+    Write-Host "  FULL DECOMMISSION SUMMARY - $target" -ForegroundColor Cyan
+    Write-Host ("-" * 60) -ForegroundColor DarkGray
+    foreach ($r in $records) {
+        $color = switch ($r.Status) { "Success" { "Green" } "Failed" { "Red" } default { "Yellow" } }
+        Write-Host ("  {0,-25} {1}" -f $r.Step, $r.Status) -ForegroundColor $color
+    }
+    Write-Host ""
+
+    $choice = Read-Host "  Export combined HTML report? [Y/N]"
+    if ($choice -match "^[Yy]") {
+        $path = Export-HTMLReport -Data @{ Steps = $records } -ReportType "DCDecommission" -Username $target -Source "LocalAD"
+        Write-Host "  [OK] Report saved: $path" -ForegroundColor Green
+    }
+}
+
+function Invoke-DCDecommissionWizard {
+    $running = $true
+    while ($running) {
+        Write-Host ""
+        Write-Host "  ------------------------------------------------------------------" -ForegroundColor DarkGray
+        Write-Host "  DECOMMISSION WIZARD" -ForegroundColor White
+        Write-Host "  ------------------------------------------------------------------" -ForegroundColor DarkGray
+        Write-Host "    [1]  DHCP Cleanup"
+        Write-Host "    [2]  DNS Cleanup"
+        Write-Host "    [3]  Demote Domain Controller"
+        Write-Host "    [4]  AD Metadata Cleanup"
+        Write-Host "    [5]  Verify Decommission"
+        Write-Host "    [6]  Full Decommission (runs 1-5 in order)"
+        Write-Host "    [0]  Back to main menu"
+        Write-Host ""
+        $choice = Read-Host "  Select step"
+
+        switch ($choice.Trim()) {
+            "1" { Invoke-DCDhcpCleanup         | Out-Null }
+            "2" { Invoke-DCDnsCleanup          | Out-Null }
+            "3" { Invoke-DCDemote              | Out-Null }
+            "4" { Invoke-DCMetadataCleanup     | Out-Null }
+            "5" { Invoke-DCDecommissionVerify  | Out-Null }
+            "6" { Invoke-DCFullDecommission }
+            "0" { $running = $false }
+            default { Write-Host "  [ERROR] Invalid option. Enter 0-6." -ForegroundColor Red }
+        }
+    }
+}
