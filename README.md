@@ -146,3 +146,4 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 | 1.1 | 2026-06-10 | Added RADIUS / NPS Audit (option 15) |
 | 1.2 | 2026-06-21 | Added Account Troubleshooting Report (option 13); renumbered menu so Exit is always last |
 | 1.3 | 2026-06-22 | Account Troubleshooting Report: added last password change, password expiry date, and last logon fields |
+| 1.4 | 2026-06-22 | Added Decommission Wizard (option 15): DHCP/DNS cleanup, demote, AD metadata cleanup, verify, and full-decommission orchestration |
