@@ -34,7 +34,6 @@ Unblock-File -LiteralPath $PSCommandPath -ErrorAction SilentlyContinue
 . (Join-Path $modulePath "Invoke-AccountActions.ps1")
 . (Join-Path $modulePath "Get-AccountTroubleshoot.ps1")
 . (Join-Path $modulePath "Get-RadiusInfo.ps1")
-. (Join-Path $modulePath "Invoke-DCDecommission.ps1")
 
 function Show-Banner {
     Clear-Host
@@ -156,19 +155,15 @@ function Show-Menu {
     Write-Host "    [14]  RADIUS / NPS Audit" -NoNewline
     if (-not $isLocal) { Write-Host "  (Local AD only)" -ForegroundColor DarkGray } else { Write-Host "" }
     Write-Host ""
-    Write-Host "  -- DC DECOMMISSIONING --" -ForegroundColor DarkCyan
-    Write-Host "    [15]  Decommission Wizard" -NoNewline
-    if (-not $isLocal) { Write-Host "  (Local AD only)" -ForegroundColor DarkGray } else { Write-Host "" }
-    Write-Host ""
     Write-Host "  -- SYSTEM --" -ForegroundColor DarkCyan
-    Write-Host "    [16]  Change Source"
-    Write-Host "    [17]  Exit"
+    Write-Host "    [15]  Change Source"
+    Write-Host "    [16]  Exit"
     Write-Host ""
 }
 
 function Assert-LocalAD {
     if ((Get-ADSource) -ne "LocalAD") {
-        Write-Host "  [INFO] This feature requires Local AD. Use [16] to change source." -ForegroundColor Yellow
+        Write-Host "  [INFO] This feature requires Local AD. Use [15] to change source." -ForegroundColor Yellow
         return $false
     }
     return $true
@@ -210,8 +205,7 @@ while ($running) {
         "12" { if (Assert-LocalAD) { Invoke-ForcePasswordReset } }
         "13" { if (Assert-LocalAD) { Invoke-AccountTroubleshootReport } }
         "14" { if (Assert-LocalAD) { Invoke-RadiusAudit } }
-        "15" { if (Assert-LocalAD) { Invoke-DCDecommissionWizard } }
-        "16" {
+        "15" {
             Show-Banner
             Install-ADCommanderRequirements
             $connected = $false
@@ -223,10 +217,10 @@ while ($running) {
                 }
             }
         }
-        "17" {
+        "16" {
             Write-Host "`n  Goodbye.`n" -ForegroundColor Cyan
             $running = $false
         }
-        default { Write-Host "  [ERROR] Invalid option. Enter 1-17." -ForegroundColor Red }
+        default { Write-Host "  [ERROR] Invalid option. Enter 1-16." -ForegroundColor Red }
     }
 }

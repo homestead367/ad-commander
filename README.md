@@ -25,13 +25,6 @@
 | 12 | Force Password Reset | ✓ | |
 | 13 | Account Troubleshooting Report | ✓ | |
 | 14 | RADIUS / NPS Audit | ✓ | |
-| 15 | **Decommission Wizard** | ✓ | |
-| 15.1 | &nbsp;&nbsp;DHCP Cleanup | ✓ | |
-| 15.2 | &nbsp;&nbsp;DNS Cleanup | ✓ | |
-| 15.3 | &nbsp;&nbsp;Demote Domain Controller | ✓ | |
-| 15.4 | &nbsp;&nbsp;AD Metadata Cleanup | ✓ | |
-| 15.5 | &nbsp;&nbsp;Verify Decommission | ✓ | |
-| 15.6 | &nbsp;&nbsp;Full Decommission | ✓ | |
 
 ---
 
@@ -82,8 +75,7 @@ ADCommander/
 │   ├── Invoke-AccountActions.ps1    # Unlock accounts, force PW reset
 │   ├── Get-PrivilegedAccess.ps1     # Privileged group audit
 │   ├── Get-AccountTroubleshoot.ps1  # Per-account lockout/bad-password trace
-│   ├── Get-RadiusInfo.ps1           # RADIUS/NPS role + client audit
-│   └── Invoke-DCDecommission.ps1    # DC decommission: DHCP/DNS cleanup, demote, AD metadata cleanup, verify
+│   └── Get-RadiusInfo.ps1           # RADIUS/NPS role + client audit
 └── Reports/                         # HTML reports saved here (auto-created)
 ```
 
@@ -134,7 +126,6 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 - This tool performs **read-only** operations except for Unlock Account and Force Password Reset, both of which require explicit confirmation.
 - **RADIUS / NPS Audit** queries servers via WinRM (`Invoke-Command`) and requires WinRM connectivity/permissions to the target servers.
 - **Account Troubleshooting Report** queries every domain controller individually for bad-password/lockout attributes, so it's slower than other lookups but pinpoints which DC is likely the source of an account lockout. It also reports last password change, computed password expiry date, and last logon (replicated attribute — approximate, not real-time).
-- **DC Decommissioning** steps (DHCP Cleanup, DNS Cleanup, Demote, AD Metadata Cleanup) are destructive and each require explicit confirmation; AD Metadata Cleanup's destructive path requires typing the DC name to confirm. Pre-flight checks hard-block decommissioning a DC that holds a FSMO role or is the last Global Catalog in its site — resolve those manually first. The Wizard runs all steps in order, confirms each individually, and stops on first failure. Steps can be run against a local or remote DC (remote uses WinRM).
 
 ---
 
@@ -146,4 +137,3 @@ Reports are fully self-contained (no external dependencies) and safe to share vi
 | 1.1 | 2026-06-10 | Added RADIUS / NPS Audit (option 15) |
 | 1.2 | 2026-06-21 | Added Account Troubleshooting Report (option 13); renumbered menu so Exit is always last |
 | 1.3 | 2026-06-22 | Account Troubleshooting Report: added last password change, password expiry date, and last logon fields |
-| 1.4 | 2026-06-22 | Added Decommission Wizard (option 15): DHCP/DNS cleanup, demote, AD metadata cleanup, verify, and full-decommission orchestration |

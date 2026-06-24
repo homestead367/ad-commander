@@ -10,7 +10,7 @@ function Export-HTMLReport {
         [ValidateSet("SearchResult","Comparison","GPOReport","HealthCheck",
                      "StaleAccounts","PasswordExpiry","ComputerSearch",
                      "GroupInfo","GroupComparison","PrivilegedAccess","RadiusAudit",
-                     "AccountTroubleshoot","DCDecommission")]
+                     "AccountTroubleshoot")]
         [string]$ReportType,
 
         [Parameter(Mandatory)]
@@ -100,7 +100,6 @@ function Export-HTMLReport {
         "PrivilegedAccess"{ Build-PrivHTML       -Data $Data }
         "RadiusAudit"     { Build-RadiusHTML     -Data $Data }
         "AccountTroubleshoot" { Build-TroubleshootHTML -Data $Data }
-        "DCDecommission"      { Build-DCDecommissionHTML -Data $Data }
     }
 
     ($hdr + $body + $ftr) | Out-File -FilePath $filepath -Encoding UTF8
@@ -348,30 +347,6 @@ function Build-TroubleshootHTML {
         $css = if ($d.LockedOut -eq $true) { "danger" } else { "" }
         $html += "<tr class='$css'><td>$(HE $d.DC)</td><td>$(HE ([string]$d.BadPwdCount))</td>" +
                  "<td>$(HE $d.LastBadPasswordAttempt)</td><td>$(HE ([string]$d.LockedOut))</td></tr>`n"
-    }
-    $html += "</tbody></table>"
-    return $html
-}
-
-function Build-DCDecommissionHTML {
-    param([hashtable]$Data)
-    $html = "<h2>Domain Controller Decommission Report</h2>"
-    $html += "<table><thead><tr><th>Step</th><th>Status</th><th>Timestamp</th><th>Detail</th></tr></thead><tbody>"
-    foreach ($s in $Data.Steps) {
-        $css = switch ($s.Status) {
-            "Failed"    { "danger" }
-            "Skipped"   { "warn" }
-            "Cancelled" { "warn" }
-            default     { "" }
-        }
-        $badgeClass = switch ($s.Status) {
-            "Success" { "badge-ok" }
-            "Failed"  { "badge-fail" }
-            default   { "badge-warn" }
-        }
-        $html += "<tr class='$css'><td>$(HE $s.Step)</td>" +
-                 "<td><span class='badge $badgeClass'>$(HE $s.Status)</span></td>" +
-                 "<td>$(HE $s.Timestamp)</td><td>$(HE $s.Detail)</td></tr>`n"
     }
     $html += "</tbody></table>"
     return $html
